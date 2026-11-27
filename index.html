@@ -20,7 +20,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
-  <!-- Leaflet for crisp real Singapore Voyager map tiles (works with zero API key on iPhone!) -->
+  <!-- Leaflet + OneMap Singapore (SLA) free national map tiles (zero API key!) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
@@ -93,7 +93,6 @@
   <!-- ==================== FULL-SCREEN MAP VIEW ==================== -->
   <section id="mapScreen" class="map-screen hidden" aria-label="Singapore Cocktail Bars Map">
     <div id="leafletMap"></div>
-    <div id="liveGoogleMap" class="hidden"></div>
 
     <div class="map-district-pills no-scrollbar">
       <button data-focus="all" class="district-pill">Central SG</button>
@@ -101,6 +100,19 @@
       <button data-focus="amoy" class="district-pill">Amoy &amp; Boat Quay</button>
       <button data-focus="bay" class="district-pill">Bugis &amp; Marina Bay</button>
       <button data-focus="orchard" class="district-pill">Orchard</button>
+    </div>
+
+    <div class="map-tools-stack">
+      <button id="btnMapTheme" class="map-tool-btn" type="button" title="Switch Default / Night map" aria-label="Switch map between Default and Night mode">
+        <svg id="mapThemeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+        </svg>
+      </button>
+      <button id="btnLocateMe" class="map-tool-btn" type="button" title="Show my location" aria-label="Show my current GPS location">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+        </svg>
+      </button>
     </div>
 
     <div id="mapPreviewCard" class="map-preview-card hidden"></div>
@@ -266,12 +278,12 @@
     </div>
   </div>
 
-  <!-- ==================== SETTINGS, GOOGLE MAPS API & iPHONE INSTALL SHEET ==================== -->
+  <!-- ==================== SETTINGS, MAPS & iPHONE INSTALL SHEET ==================== -->
   <div id="settingsBackdrop" class="sheet-backdrop hidden">
     <div class="sheet-modal" role="dialog" aria-modal="true">
       <div class="sheet-head">
         <button id="closeSettingsSheet" style="border:none;background:none;font-size:18px;cursor:pointer;padding:4px;">✕</button>
-        <span>iPhone App &amp; Google Maps</span>
+        <span>iPhone App &amp; Maps</span>
         <span style="width:26px;"></span>
       </div>
       <div class="sheet-body">
@@ -291,15 +303,11 @@
           </ol>
         </div>
 
-        <!-- Google Maps Integration Options -->
+        <!-- Maps & Google Maps Export -->
         <div style="display:flex;flex-direction:column;gap:10px;">
-          <div style="font-size:14px;font-weight:700;">Google Maps Integration</div>
+          <div style="font-size:14px;font-weight:700;">Maps &amp; Navigation</div>
+          <div style="font-size:12.5px;color:var(--ink-secondary);line-height:1.5;">Interactive map is powered by <strong>OneMap Singapore (SLA)</strong> — 100% free with Default &amp; Night styles and live GPS. Walking directions and place links open natively in Google Maps.</div>
           <button id="setExportKml" class="btn-outline" style="width:100%;">Export All 34 Bars to Google My Maps (.kml)</button>
-          <div style="font-size:12.5px;color:var(--ink-secondary);margin-top:4px;">Optional: paste a Google Maps JavaScript API key to replace the default Voyager map tiles with live Google Maps tiles &amp; walking directions.</div>
-          <div style="display:flex;gap:8px;">
-            <input id="gmapsKeyInput" class="clean-input" type="password" placeholder="Google Maps JS API Key (optional)" />
-            <button id="btnSaveGmapsKey" class="btn-outline" style="white-space:nowrap;">Save</button>
-          </div>
         </div>
 
         <!-- Add Custom Bar & Data Backup -->

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sg50-bars-v2';
+const CACHE_NAME = 'sg50-bars-v3';
 
 const CORE_ASSETS = [
   './',
@@ -43,19 +43,31 @@ self.addEventListener('fetch', event => {
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
-  // Cache-first for same-origin app shell & photos; network-first with cache fallback for map tiles/CDNs
+  // Cache-first for immutable assets/icons; network-first with cache fallback for HTML/JS/CSS & OneMap tiles
   if (url.origin === self.location.origin) {
-    event.respondWith(
-      caches.match(req).then(cached => cached || fetch(req).then(res => {
-        const clone = res.clone();
-        caches.open(CACHE_NAME).then(c => c.put(req, clone));
-        return res;
-      }))
-    );
+    if (url.pathname.includes('/assets/')) {
+      event.respondWith(
+        caches.match(req).then(cached => cached || fetch(req).then(res => {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(req, clone));
+          return res;
+        }))
+      );
+    } else {
+      event.respondWith(
+        fetch(req).then(res => {
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then(c => c.put(req, clone));
+          }
+          return res;
+        }).catch(() => caches.match(req))
+      );
+    }
   } else {
     event.respondWith(
       fetch(req).then(res => {
-        if (res.ok && (url.hostname.includes('cartocdn') || url.hostname.includes('unpkg') || url.hostname.includes('fonts'))) {
+        if (res.ok && (url.hostname.includes('onemap.gov.sg') || url.hostname.includes('unpkg') || url.hostname.includes('fonts'))) {
           const clone = res.clone();
           caches.open(CACHE_NAME).then(c => c.put(req, clone));
         }

@@ -5,7 +5,7 @@ An Airbnb-inspired Progressive Web App (PWA) to explore and track all **34 activ
 ## Design Highlights
 - **Photo-first Airbnb layout**: Borderless rounded-2xl editorial photography cards, top-left white ranking ribbons, floating heart wishlist buttons, and clean 4-line typography.
 - **Floating search pill & monochrome icon rail**: Filter instantly across *All bars*, *50 Best*, *World's Best*, *Speakeasy*, *Hotel bars*, *Ginza*, *Listening*, *Heritage*, *Rooftop*, and *Sustainable*.
-- **Full-screen interactive map**: Floating dark **Show map** pill toggles a crisp Singapore map (CartoDB Voyager via Leaflet — zero API key required, plus optional Live Google Maps JS API mode) with Airbnb-style white pill markers (`#9`, `#12`, `S$28`) and floating photo preview cards.
+- **Full-screen interactive map**: Floating dark **Show map** pill toggles a crisp Singapore map (**OneMap Singapore by SLA** via Leaflet — 100% free, zero API key, with **Default / Night** mode toggle and live **GPS blue-dot** location) with Airbnb-style white pill markers (`#9`, `#12`, `S$28`) and floating photo preview cards.
 - **Full-screen listing detail sheet**: Hero photography, Airbnb-style laurel ranking callout, embedded Google Maps preview, one-tap native Google Maps & walking directions, tasting log, and a sticky bottom **Check in** bar.
 - **Bar Crawl Planner**: Pre-built and custom multi-stop Singapore bar crawls with shortest-walk optimization and one-tap launch into Google Maps walking directions.
 - **Google My Maps Export**: Export all 34 bars organized into folders (`2026 Ranked`, `Visited`, `Wishlists`, `50 Discovery`) as `.kml`.

@@ -1,7 +1,7 @@
 (() => {
   const { officialBars, presets, areaCoords } = window.SG_BARS_DATA;
   const STORAGE_KEY = 'sg50_airbnb_pwa_v1';
-  const GMAPS_KEY_STORAGE = 'sg50_gmaps_api_key';
+  const MAP_THEME_STORAGE = 'sg50_map_theme';
 
   // Register Service Worker for offline iPhone PWA installability
   if ('serviceWorker' in navigator) {
@@ -30,11 +30,20 @@
     crawl: ['jigger-and-pony', 'bop', 'side-door', 'cat-bite-club'],
     tab: 'explore', // explore | wishlists | crawl | passport
     mapOpen: false,
+    mapTheme: 'default', // default | night
     selectedMapId: null,
     detailId: null,
     filters: { search: '', cat: 'all', area: 'all', status: 'all', sort: 'rank' },
-    leaflet: { map: null, markers: [], routeLine: null },
-    liveGmaps: { active: false, map: null, markers: [], directionsRenderer: null }
+    leaflet: {
+      map: null,
+      tileLayer: null,
+      markers: [],
+      routeLine: null,
+      userMarker: null,
+      userCircle: null,
+      geoWatchId: null,
+      userPos: null
+    }
   };
 
   function loadState() {
@@ -46,6 +55,8 @@
         if (Array.isArray(p.customBars)) state.customBars = p.customBars;
         if (Array.isArray(p.crawl)) state.crawl = p.crawl;
       }
+      const savedTheme = localStorage.getItem(MAP_THEME_STORAGE);
+      if (savedTheme === 'night' || savedTheme === 'default') state.mapTheme = savedTheme;
     } catch (e) {}
   }
 
@@ -208,6 +219,14 @@
     document.getElementById('toggleMapIcon').innerHTML = state.mapOpen
       ? '<path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round"/>'
       : '<path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" stroke-linecap="round" stroke-linejoin="round"/>';
+    syncHeaderHeight();
+  }
+
+  function syncHeaderHeight() {
+    const header = document.getElementById('siteHeader');
+    if (!header) return;
+    const h = Math.ceil(header.getBoundingClientRect().height);
+    if (h > 0) document.documentElement.style.setProperty('--header-h', `${h}px`);
   }
 
   function renderExploreGrid() {
@@ -477,21 +496,61 @@
     document.getElementById('detNotes').onchange = e => updateRecord(bar.id, { notes: e.target.value });
   }
 
-  // ==================== REAL MAP (LEAFLET VOYAGER + OPTIONAL LIVE GOOGLE MAPS) ====================
+  // ==================== REAL MAP (ONEMAP SINGAPORE SLA — FREE, ZERO API KEY) ====================
+  const ONEMAP_TILES = {
+    default: 'https://www.onemap.gov.sg/maps/tiles/Default/{z}/{x}/{y}.png',
+    night: 'https://www.onemap.gov.sg/maps/tiles/Night/{z}/{x}/{y}.png'
+  };
+  const ONEMAP_ATTR = '<img src="https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png" alt="OneMap" style="height:13px;width:13px;vertical-align:text-bottom;margin-right:3px;" /><a href="https://www.onemap.gov.sg/" target="_blank" rel="noopener noreferrer">OneMap</a> &copy; contributors | <a href="https://www.sla.gov.sg/" target="_blank" rel="noopener noreferrer">SLA</a>';
+  const SG_BOUNDS = [[1.144, 103.535], [1.494, 104.502]];
+
+  function updateMapThemeUI() {
+    const isNight = state.mapTheme === 'night';
+    document.getElementById('mapScreen').classList.toggle('map-night', isNight);
+    const icon = document.getElementById('mapThemeIcon');
+    const btn = document.getElementById('btnMapTheme');
+    if (icon) {
+      icon.innerHTML = isNight
+        ? '<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>'
+        : '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>';
+    }
+    if (btn) btn.title = isNight ? 'Switch to Default light map' : 'Switch to Night dark map';
+  }
+
+  function applyMapTheme(theme, silent) {
+    state.mapTheme = theme === 'night' ? 'night' : 'default';
+    try { localStorage.setItem(MAP_THEME_STORAGE, state.mapTheme); } catch (e) {}
+    updateMapThemeUI();
+    if (state.leaflet.map && window.L) {
+      if (state.leaflet.tileLayer) state.leaflet.tileLayer.remove();
+      state.leaflet.tileLayer = L.tileLayer(ONEMAP_TILES[state.mapTheme], {
+        detectRetina: true,
+        minZoom: 11,
+        maxZoom: 19,
+        attribution: ONEMAP_ATTR
+      }).addTo(state.leaflet.map);
+    }
+    if (!silent) showToast(state.mapTheme === 'night' ? 'OneMap Night mode' : 'OneMap Default mode');
+  }
+
   function ensureLeafletMap() {
     if (state.leaflet.map || !window.L) return;
-    const map = L.map('leafletMap', { zoomControl: false, attributionControl: false }).setView([1.2885, 103.8465], 14);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      subdomains: 'abcd',
-      maxZoom: 19
-    }).addTo(map);
+    const map = L.map('leafletMap', {
+      zoomControl: false,
+      attributionControl: false,
+      minZoom: 11,
+      maxZoom: 19,
+      maxBounds: SG_BOUNDS,
+      maxBoundsViscosity: 0.7
+    }).setView([1.2885, 103.8465], 14);
+    L.control.attribution({ position: 'bottomleft', prefix: false }).addTo(map);
     L.control.zoom({ position: 'topright' }).addTo(map);
     map.on('click', () => { state.selectedMapId = null; renderMapPreview(); syncMapMarkers(); });
     state.leaflet.map = map;
+    applyMapTheme(state.mapTheme, true);
   }
 
   function syncMapMarkers() {
-    if (state.liveGmaps.active && state.liveGmaps.map) { syncLiveGoogleMap(); return; }
     ensureLeafletMap();
     const map = state.leaflet.map;
     if (!map) return;
@@ -553,42 +612,92 @@
     el.onclick = () => openDetail(bar.id);
   }
 
-  // Optional Live Google Maps JS API
-  function activateLiveGoogleMaps(key) {
-    if (!key) return;
-    if (window.google && window.google.maps) { initLiveGoogleMap(); return; }
-    window._initSgGmaps = initLiveGoogleMap;
-    const s = document.createElement('script');
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&callback=_initSgGmaps`;
-    s.async = true; s.onerror = () => showToast('Google Maps API failed — using Voyager Map');
-    document.head.appendChild(s);
+  // Live GPS "Locate Me" Blue Dot
+  function isInSingapore(lat, lng) {
+    return lat >= 1.144 && lat <= 1.494 && lng >= 103.535 && lng <= 104.502;
   }
 
-  function initLiveGoogleMap() {
-    document.getElementById('leafletMap').classList.add('hidden');
-    document.getElementById('liveGoogleMap').classList.remove('hidden');
-    state.liveGmaps.active = true;
-    state.liveGmaps.map = new google.maps.Map(document.getElementById('liveGoogleMap'), {
-      center: { lat: 1.2885, lng: 103.8465 }, zoom: 14, mapTypeControl: false, streetViewControl: false
-    });
-    state.liveGmaps.directionsRenderer = new google.maps.DirectionsRenderer({
-      map: state.liveGmaps.map, suppressMarkers: true, polylineOptions: { strokeColor: '#FF385C', strokeWeight: 4 }
-    });
-    syncLiveGoogleMap();
-    showToast('Live Google Maps activated');
-  }
+  function renderUserLocation(lat, lng, accuracy, shouldFly) {
+    ensureLeafletMap();
+    const map = state.leaflet.map;
+    if (!map) return;
+    state.leaflet.userPos = { lat, lng, accuracy };
 
-  function syncLiveGoogleMap() {
-    const gmap = state.liveGmaps.map; if (!gmap || !window.google) return;
-    state.liveGmaps.markers.forEach(m => m.setMap(null)); state.liveGmaps.markers = [];
-    getFilteredBars().forEach(bar => {
-      const m = new google.maps.Marker({
-        position: { lat: bar.lat, lng: bar.lng }, map: gmap, title: bar.name,
-        label: bar.asiaRank ? { text: `#${bar.asiaRank}`, color: '#fff', fontSize: '11px', fontWeight: '700' } : undefined
+    if (state.leaflet.userCircle) {
+      state.leaflet.userCircle.setLatLng([lat, lng]).setRadius(Math.min(accuracy || 30, 150));
+    } else {
+      state.leaflet.userCircle = L.circle([lat, lng], {
+        radius: Math.min(accuracy || 30, 150),
+        color: '#2563eb',
+        weight: 1,
+        opacity: 0.45,
+        fillColor: '#3b82f6',
+        fillOpacity: 0.14,
+        interactive: false
+      }).addTo(map);
+    }
+
+    if (state.leaflet.userMarker) {
+      state.leaflet.userMarker.setLatLng([lat, lng]);
+    } else {
+      const icon = L.divIcon({
+        className: 'leaflet-div-icon',
+        html: '<div class="user-loc-wrap"><span class="user-loc-pulse"></span><span class="user-loc-dot"></span></div>',
+        iconSize: [0, 0]
       });
-      m.addListener('click', () => { state.selectedMapId = bar.id; renderMapPreview(); });
-      state.liveGmaps.markers.push(m);
-    });
+      state.leaflet.userMarker = L.marker([lat, lng], { icon, zIndexOffset: 1500, interactive: false }).addTo(map);
+    }
+
+    if (shouldFly) {
+      if (isInSingapore(lat, lng)) {
+        map.flyTo([lat, lng], 16, { duration: 0.7 });
+        let nearest = null, bestKm = Infinity;
+        getAllBars().forEach(b => {
+          const d = distKm({ lat, lng }, b);
+          if (d < bestKm) { bestKm = d; nearest = b; }
+        });
+        showToast(nearest ? `Nearest: ${nearest.name} (${formatWalk(bestKm)})` : 'Showing your location');
+      } else {
+        showToast("You're outside Singapore — showing Central SG");
+        focusMapDistrict('all');
+      }
+    }
+  }
+
+  function locateUser() {
+    if (!('geolocation' in navigator)) {
+      showToast('Location is not supported on this browser');
+      return;
+    }
+    const btn = document.getElementById('btnLocateMe');
+    if (state.leaflet.userPos && state.leaflet.geoWatchId !== null) {
+      const { lat, lng, accuracy } = state.leaflet.userPos;
+      renderUserLocation(lat, lng, accuracy, true);
+      return;
+    }
+
+    btn.classList.add('locating');
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        btn.classList.remove('locating');
+        btn.classList.add('active');
+        renderUserLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy, true);
+        if (state.leaflet.geoWatchId === null) {
+          state.leaflet.geoWatchId = navigator.geolocation.watchPosition(
+            p => renderUserLocation(p.coords.latitude, p.coords.longitude, p.coords.accuracy, false),
+            () => {},
+            { enableHighAccuracy: true, maximumAge: 10000 }
+          );
+        }
+      },
+      err => {
+        btn.classList.remove('locating');
+        btn.classList.remove('active');
+        if (err && err.code === 1) showToast('Enable Location Services in Safari to see yourself on the map');
+        else showToast('Could not get your GPS location — try again');
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 15000 }
+    );
   }
 
   function focusMapDistrict(key) {
@@ -600,8 +709,7 @@
       orchard: [1.3075, 103.8300, 15]
     };
     const [lat, lng, z] = views[key] || views.all;
-    if (state.liveGmaps.active && state.liveGmaps.map) { state.liveGmaps.map.panTo({ lat, lng }); state.liveGmaps.map.setZoom(z); }
-    else if (state.leaflet.map) { state.leaflet.map.flyTo([lat, lng], z, { duration: 0.65 }); }
+    if (state.leaflet.map) state.leaflet.map.flyTo([lat, lng], z, { duration: 0.65 });
   }
 
   // ==================== FILTER & CRAWL HELPERS ====================
@@ -689,6 +797,18 @@
     document.getElementById('siteHeader').classList.toggle('scrolled', window.scrollY > 4);
   }, { passive: true });
 
+  window.addEventListener('resize', () => {
+    syncHeaderHeight();
+    if (state.mapOpen && state.leaflet.map) state.leaflet.map.invalidateSize();
+  });
+
+  window.addEventListener('orientationchange', () => {
+    setTimeout(() => {
+      syncHeaderHeight();
+      if (state.mapOpen && state.leaflet.map) state.leaflet.map.invalidateSize();
+    }, 150);
+  });
+
   document.getElementById('brandHome').onclick = () => { state.tab = 'explore'; state.mapOpen = false; resetFilters(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
   document.querySelectorAll('.tabbar-btn, .nav-ghost[data-tab]').forEach(btn => {
@@ -712,6 +832,7 @@
     renderHeaderState();
     if (state.mapOpen) {
       setTimeout(() => {
+        syncHeaderHeight();
         ensureLeafletMap();
         if (state.leaflet.map) state.leaflet.map.invalidateSize();
         syncMapMarkers();
@@ -721,6 +842,8 @@
   };
 
   document.querySelectorAll('.district-pill').forEach(b => b.onclick = () => focusMapDistrict(b.dataset.focus));
+  document.getElementById('btnMapTheme').onclick = () => applyMapTheme(state.mapTheme === 'night' ? 'default' : 'night');
+  document.getElementById('btnLocateMe').onclick = locateUser;
 
   // Delegated card click & heart toggle on all grids
   ['exploreGrid', 'wishlistGrid', 'passportGrid'].forEach(id => {
@@ -782,7 +905,6 @@
 
   // Settings & iPhone Install Sheet
   const openSettings = () => {
-    document.getElementById('gmapsKeyInput').value = localStorage.getItem(GMAPS_KEY_STORAGE) || '';
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     document.getElementById('pwaStatusText').textContent = isStandalone ? 'Installed on Home Screen ✓ (Offline ready)' : 'Works offline with native full-screen UI';
     document.getElementById('settingsBackdrop').classList.remove('hidden');
@@ -805,12 +927,6 @@
       if (Array.isArray(p.crawl)) state.crawl = p.crawl;
       saveState(); document.getElementById('settingsBackdrop').classList.add('hidden'); renderAll(); showToast('Passport restored');
     } catch { showToast('Invalid JSON format'); }
-  };
-  document.getElementById('btnSaveGmapsKey').onclick = () => {
-    const k = document.getElementById('gmapsKeyInput').value.trim();
-    if (!k) { localStorage.removeItem(GMAPS_KEY_STORAGE); state.liveGmaps.active = false; document.getElementById('liveGoogleMap').classList.add('hidden'); document.getElementById('leafletMap').classList.remove('hidden'); showToast('Using default Voyager Map'); return; }
-    localStorage.setItem(GMAPS_KEY_STORAGE, k);
-    activateLiveGoogleMaps(k);
   };
 
   // Add Custom Bar
@@ -837,7 +953,6 @@
   };
 
   loadState();
+  updateMapThemeUI();
   renderAll();
-  const savedKey = localStorage.getItem(GMAPS_KEY_STORAGE);
-  if (savedKey) activateLiveGoogleMaps(savedKey);
 })();
