@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>SG 50 — Singapore Cocktail Bars</title>
+  <meta name="description" content="Explore and track all 34 Singapore cocktail bars from the50.com with interactive maps and Google Maps bar crawls." />
+
+  <!-- iPhone / iOS PWA Support -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="SG 50 Bars" />
+  <meta name="theme-color" content="#ffffff" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="./assets/icons/icon-192.png" />
+
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Leaflet for crisp real Singapore Voyager map tiles (works with zero API key on iPhone!) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+
+  <!-- ==================== STICKY HEADER ==================== -->
+  <header id="siteHeader" class="site-header">
+    <!-- Desktop Header (Airbnb Web Style) -->
+    <div class="desktop-bar">
+      <div id="brandHome" class="brand-lockup" role="button" tabindex="0">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="8" fill="#FF385C"/>
+          <path d="M8.5 8.5H19.5C19.5 12.1 17.1 14.8 14 15.2V20H17.2V21.5H10.8V20H14V15.2C10.9 14.8 8.5 12.1 8.5 8.5Z" fill="#fff"/>
+        </svg>
+        <span>sg50</span>
+      </div>
+
+      <div id="desktopSearchPill" class="desktop-search-pill" role="button" tabindex="0">
+        <span id="dsArea" class="ds-seg">Anywhere in SG</span>
+        <span class="ds-div"></span>
+        <span id="dsCat" class="ds-seg">All lists</span>
+        <span class="ds-div"></span>
+        <span id="dsQuery" class="ds-seg muted">Search bars or drinks</span>
+        <span class="ds-go">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.6"><circle cx="9" cy="9" r="6"/><path d="M14 14l4 4" stroke-linecap="round"/></svg>
+        </span>
+      </div>
+
+      <nav class="desktop-nav-actions" aria-label="Desktop Navigation">
+        <button data-tab="explore" class="nav-ghost active">Explore</button>
+        <button data-tab="wishlists" class="nav-ghost">Wishlists</button>
+        <button data-tab="crawl" class="nav-ghost">Crawl <span id="deskCrawlCount" class="nav-pill-count">4</span></button>
+        <button data-tab="passport" class="nav-ghost">Passport <span id="deskVisitedCount" class="nav-pill-count">0</span></button>
+        <button id="btnDesktopSettings" class="filter-circle-btn" title="Google Maps, Install iPhone PWA & Backup" style="width:38px;height:38px;margin-left:6px;">
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 10.5a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10z" clip-rule="evenodd"/></svg>
+        </button>
+      </nav>
+    </div>
+
+    <!-- Mobile Floating Pill Search Bar (Airbnb iOS Style) -->
+    <div id="mobileSearchWrap" class="mobile-search-wrap">
+      <button id="mobileSearchPill" class="mobile-search-pill">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#222" stroke-width="2.2" style="flex-shrink:0;"><circle cx="9" cy="9" r="6"/><path d="M14 14l4 4" stroke-linecap="round"/></svg>
+        <div style="min-width:0;flex:1;">
+          <div id="mspTitle" class="msp-title">Where to drink?</div>
+          <div id="mspSub" class="msp-sub">Singapore · Any district · 34 bars</div>
+        </div>
+      </button>
+      <button id="btnMobileFilters" class="filter-circle-btn" aria-label="Filters">
+        <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="#222" stroke-width="1.8"><path d="M3 6h14M6 10h8M8 14h4" stroke-linecap="round"/></svg>
+        <span id="mobileFilterBadge" class="filter-dot hidden">1</span>
+      </button>
+    </div>
+
+    <!-- Airbnb Icon-Above-Label Category Rail -->
+    <div id="catRailWrap" class="cat-rail-wrap">
+      <div id="catRail" class="cat-rail no-scrollbar" role="tablist"></div>
+      <button id="btnDesktopFilters" class="desktop-filter-btn">
+        <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h14M6 10h8M8 14h4" stroke-linecap="round"/></svg>
+        <span id="desktopFilterText">Filters</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==================== TAB 1: EXPLORE PHOTO GRID ==================== -->
+  <main id="tabExplore" class="main-content">
+    <div id="exploreGrid" class="listing-grid"></div>
+  </main>
+
+  <!-- ==================== FULL-SCREEN MAP VIEW ==================== -->
+  <section id="mapScreen" class="map-screen hidden" aria-label="Singapore Cocktail Bars Map">
+    <div id="leafletMap"></div>
+    <div id="liveGoogleMap" class="hidden"></div>
+
+    <div class="map-district-pills no-scrollbar">
+      <button data-focus="all" class="district-pill">Central SG</button>
+      <button data-focus="tp" class="district-pill">Tanjong Pagar</button>
+      <button data-focus="amoy" class="district-pill">Amoy &amp; Boat Quay</button>
+      <button data-focus="bay" class="district-pill">Bugis &amp; Marina Bay</button>
+      <button data-focus="orchard" class="district-pill">Orchard</button>
+    </div>
+
+    <div id="mapPreviewCard" class="map-preview-card hidden"></div>
+  </section>
+
+  <!-- Floating Dark Pill "Show map" / "Show list" -->
+  <button id="btnToggleMap" class="floating-map-btn">
+    <span id="toggleMapLabel">Show map</span>
+    <svg id="toggleMapIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+
+  <!-- ==================== TAB 2: WISHLISTS ==================== -->
+  <main id="tabWishlists" class="main-content hidden">
+    <div class="section-header-row">
+      <div>
+        <h1 class="section-title">Wishlists</h1>
+        <p id="wishlistSub" class="section-sub">Tap the heart on any bar to save it for your next night out.</p>
+      </div>
+    </div>
+    <div id="wishlistGrid" class="listing-grid"></div>
+  </main>
+
+  <!-- ==================== TAB 3: BAR CRAWL ==================== -->
+  <main id="tabCrawl" class="main-content hidden">
+    <div class="crawl-shell">
+      <div class="section-header-row" style="margin-bottom:0;">
+        <div>
+          <h1 class="section-title">Bar Crawl Route</h1>
+          <p id="crawlSub" class="section-sub">4 stops · Walking route ready for Google Maps</p>
+        </div>
+        <button id="btnClearCrawl" class="mini-cta">Clear</button>
+      </div>
+
+      <div class="btn-row">
+        <a id="btnOpenCrawlGmaps" href="#" target="_blank" rel="noopener noreferrer" class="btn-rausch" style="flex:1;min-width:220px;">
+          Open Walking Route in Google Maps ↗
+        </a>
+        <button id="btnOptimizeCrawl" class="btn-outline">Optimize Order</button>
+        <button id="btnShareCrawl" class="btn-outline">Share</button>
+      </div>
+
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--ink-secondary);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.04em;">Curated Routes</div>
+        <div class="preset-grid">
+          <button data-preset="tp-icons" class="preset-card">
+            <div style="font-size:14.5px;font-weight:700;">Tanjong Pagar &amp; Duxton</div>
+            <div style="font-size:13px;color:var(--ink-secondary);margin-top:3px;">6 stops · Jigger &amp; Pony to Sago House</div>
+          </button>
+          <button data-preset="amoy-river" class="preset-card">
+            <div style="font-size:14.5px;font-weight:700;">Amoy St to Boat Quay</div>
+            <div style="font-size:13px;color:var(--ink-secondary);margin-top:3px;">5 stops · Native, Fura &amp; Offtrack</div>
+          </button>
+          <button data-preset="grand-hotels" class="preset-card">
+            <div style="font-size:14.5px;font-weight:700;">Grand Hotels &amp; Bugis</div>
+            <div style="font-size:13px;color:var(--ink-secondary);margin-top:3px;">5 stops · ATLAS, Nutmeg &amp; Clove, MO Bar</div>
+          </button>
+        </div>
+      </div>
+
+      <div id="crawlList"></div>
+
+      <div style="border-top:1px solid var(--border);padding-top:20px;">
+        <div style="font-size:16px;font-weight:700;margin-bottom:10px;">Add stops to your crawl</div>
+        <input id="crawlSearch" class="clean-input" type="search" placeholder="Search Singapore bars to add..." style="margin-bottom:12px;" />
+        <div id="crawlAddList" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ==================== TAB 4: PASSPORT / VISITED & iPHONE INSTALL ==================== -->
+  <main id="tabPassport" class="main-content hidden">
+    <div class="section-header-row">
+      <div>
+        <h1 class="section-title">Your Passport</h1>
+        <p class="section-sub">Track visited bars, ratings, tasting notes &amp; Google Maps sync.</p>
+      </div>
+      <button id="btnPassportMenu" class="btn-outline" style="padding:8px 14px;font-size:13px;">Settings &amp; Maps</button>
+    </div>
+
+    <div class="passport-hero">
+      <div style="flex:1;min-width:220px;">
+        <div style="font-size:13px;font-weight:600;color:var(--ink-secondary);">the50.com Singapore Progress</div>
+        <div id="passportHeadline" style="font-size:24px;font-weight:700;margin-top:2px;letter-spacing:-0.02em;">0 of 34 bars visited</div>
+        <div class="progress-wide"><div id="passportBarFill" class="progress-wide-fill" style="width:0%"></div></div>
+      </div>
+      <div class="btn-row">
+        <button id="btnExportKmlMain" class="btn-outline" style="padding:9px 14px;font-size:13px;">Google My Maps (.kml)</button>
+        <button id="btnInstallHelp" class="btn-outline" style="padding:9px 14px;font-size:13px;">Install on iPhone</button>
+      </div>
+    </div>
+
+    <div id="passportGrid" class="listing-grid"></div>
+  </main>
+
+  <!-- ==================== iOS BOTTOM TAB BAR ==================== -->
+  <nav class="ios-tabbar" aria-label="Bottom Navigation">
+    <button data-tab="explore" class="tabbar-btn active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5" stroke-linecap="round"/></svg>
+      <span>Explore</span>
+    </button>
+    <button data-tab="wishlists" class="tabbar-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 20.5S4 15.2 4 9.3A4.8 4.8 0 0112 5.9a4.8 4.8 0 018 3.4c0 5.9-8 11.2-8 11.2z" stroke-linejoin="round"/></svg>
+      <span>Wishlists</span>
+    </button>
+    <button data-tab="crawl" class="tabbar-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 20l-5-2.5V6l5 2.5m0 11.5l6-3m-6 3V8.5m6 8.5l5 2.5V8l-5-2.5m0 11.5V5.5m0 0L9 8.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span id="mobCrawlBadge" class="tab-badge">4</span>
+      <span>Crawl</span>
+    </button>
+    <button data-tab="passport" class="tabbar-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.3 2.3 4.8-5.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Passport</span>
+    </button>
+  </nav>
+
+  <!-- ==================== AIRBNB FULL-SCREEN LISTING DETAIL SHEET ==================== -->
+  <div id="detailBackdrop" class="detail-backdrop hidden">
+    <div class="detail-sheet" role="dialog" aria-modal="true">
+      <div id="detailScroll" class="detail-scroll"></div>
+      <div id="detailStickyBar" class="detail-sticky-bar"></div>
+    </div>
+  </div>
+
+  <!-- ==================== SEARCH & FILTERS MODAL SHEET ==================== -->
+  <div id="filterSheetBackdrop" class="sheet-backdrop hidden">
+    <div class="sheet-modal" role="dialog" aria-modal="true">
+      <div class="sheet-head">
+        <button id="closeFilterSheet" style="border:none;background:none;font-size:18px;cursor:pointer;padding:4px;">✕</button>
+        <span>Search &amp; Filters</span>
+        <span style="width:26px;"></span>
+      </div>
+      <div class="sheet-body">
+        <div>
+          <label style="display:block;font-size:14px;font-weight:700;margin-bottom:8px;">Search</label>
+          <input id="sheetSearchInput" class="clean-input" type="search" placeholder="Bar name, cocktail, street, or style..." />
+        </div>
+        <div>
+          <div style="font-size:14px;font-weight:700;margin-bottom:10px;">Neighborhood</div>
+          <div id="sheetAreaPills" class="pill-select-grid"></div>
+        </div>
+        <div>
+          <div style="font-size:14px;font-weight:700;margin-bottom:10px;">Visit Status</div>
+          <div id="sheetStatusPills" class="pill-select-grid">
+            <button data-status="all" class="pill-opt active">Any</button>
+            <button data-status="unvisited" class="pill-opt">Not visited yet</button>
+            <button data-status="visited" class="pill-opt">Visited</button>
+            <button data-status="wishlist" class="pill-opt">Wishlisted</button>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:14px;font-weight:700;margin-bottom:10px;">Sort by</div>
+          <div id="sheetSortPills" class="pill-select-grid">
+            <button data-sort="rank" class="pill-opt active">the50.com Rank</button>
+            <button data-sort="rating" class="pill-opt">Highest Rated</button>
+            <button data-sort="name" class="pill-opt">Name (A–Z)</button>
+          </div>
+        </div>
+      </div>
+      <div class="sheet-foot">
+        <button id="btnClearFilters" style="border:none;background:none;font-size:14px;font-weight:600;text-decoration:underline;cursor:pointer;">Clear all</button>
+        <button id="btnApplyFilters" class="btn-rausch" style="padding:11px 22px;font-size:14px;">Show bars</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SETTINGS, GOOGLE MAPS API & iPHONE INSTALL SHEET ==================== -->
+  <div id="settingsBackdrop" class="sheet-backdrop hidden">
+    <div class="sheet-modal" role="dialog" aria-modal="true">
+      <div class="sheet-head">
+        <button id="closeSettingsSheet" style="border:none;background:none;font-size:18px;cursor:pointer;padding:4px;">✕</button>
+        <span>iPhone App &amp; Google Maps</span>
+        <span style="width:26px;"></span>
+      </div>
+      <div class="sheet-body">
+        <!-- Install on iPhone Card -->
+        <div style="border:1px solid var(--border-strong);border-radius:16px;padding:16px;background:var(--surface-subtle);">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+            <img src="./assets/icons/apple-touch-icon.png" alt="SG 50 App Icon" style="width:48px;height:48px;border-radius:12px;" />
+            <div>
+              <div style="font-size:15px;font-weight:700;">Install on iPhone Home Screen</div>
+              <div id="pwaStatusText" style="font-size:12.5px;color:var(--ink-secondary);">Works offline with native full-screen UI</div>
+            </div>
+          </div>
+          <ol style="margin:0;padding-left:18px;font-size:13px;color:var(--ink-secondary);line-height:1.6;">
+            <li>Open this site in <strong>Safari</strong> on your iPhone</li>
+            <li>Tap the <strong>Share</strong> icon (square with upward arrow)</li>
+            <li>Scroll down and tap <strong>Add to Home Screen</strong></li>
+          </ol>
+        </div>
+
+        <!-- Google Maps Integration Options -->
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="font-size:14px;font-weight:700;">Google Maps Integration</div>
+          <button id="setExportKml" class="btn-outline" style="width:100%;">Export All 34 Bars to Google My Maps (.kml)</button>
+          <div style="font-size:12.5px;color:var(--ink-secondary);margin-top:4px;">Optional: paste a Google Maps JavaScript API key to replace the default Voyager map tiles with live Google Maps tiles &amp; walking directions.</div>
+          <div style="display:flex;gap:8px;">
+            <input id="gmapsKeyInput" class="clean-input" type="password" placeholder="Google Maps JS API Key (optional)" />
+            <button id="btnSaveGmapsKey" class="btn-outline" style="white-space:nowrap;">Save</button>
+          </div>
+        </div>
+
+        <!-- Add Custom Bar & Data Backup -->
+        <div style="border-top:1px solid var(--border);padding-top:16px;display:flex;flex-direction:column;gap:10px;">
+          <div style="font-size:14px;font-weight:700;">Your Bars &amp; Data</div>
+          <button id="setAddCustomBar" class="btn-outline" style="width:100%;">+ Add a Custom Singapore Bar</button>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <button id="setDownloadJson" class="btn-outline" style="padding:10px;font-size:13px;">Backup JSON</button>
+            <button id="setDownloadCsv" class="btn-outline" style="padding:10px;font-size:13px;">Export CSV</button>
+          </div>
+          <textarea id="restoreJsonArea" class="clean-textarea" rows="3" placeholder="Paste JSON backup here to restore..."></textarea>
+          <button id="setRestoreJson" class="btn-outline" style="width:100%;padding:10px;font-size:13px;">Restore Backup</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== ADD CUSTOM BAR MODAL ==================== -->
+  <div id="customBackdrop" class="sheet-backdrop hidden">
+    <div class="sheet-modal" role="dialog" aria-modal="true">
+      <div class="sheet-head">
+        <button id="closeCustomSheet" style="border:none;background:none;font-size:18px;cursor:pointer;padding:4px;">✕</button>
+        <span>Add a Bar</span>
+        <span style="width:26px;"></span>
+      </div>
+      <form id="customBarForm" class="sheet-body">
+        <input id="cbName" class="clean-input" required placeholder="Bar name (e.g. Bar Somma)" />
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <select id="cbArea" class="clean-input">
+            <option>Tanjong Pagar</option>
+            <option>Amoy Street</option>
+            <option>Duxton Hill</option>
+            <option>Bugis &amp; Purvis St</option>
+            <option>Boat Quay</option>
+            <option>Marina Bay</option>
+            <option>Orchard</option>
+            <option>River Valley</option>
+          </select>
+          <input id="cbStyle" class="clean-input" placeholder="Style (e.g. Speakeasy)" />
+        </div>
+        <input id="cbAddress" class="clean-input" required placeholder="Street address in Singapore" />
+        <input id="cbSignature" class="clean-input" placeholder="Signature cocktail" />
+        <button type="submit" class="btn-rausch" style="width:100%;">Save Bar</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="./bars-data.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
