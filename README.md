@@ -22,9 +22,9 @@ Because iOS Safari requires **HTTPS** to install a Progressive Web App on your H
 ## Project Files
 - `index.html` — iOS PWA shell (`apple-mobile-web-app-capable`, safe-area viewport, manifest & icon links)
 - `manifest.webmanifest` — Standalone PWA manifest + maskable/standard icons
-- `sw.js` — Offline service worker caching app shell and all 12 editorial photographs
+- `sw.js` — Offline service worker caching app shell, bar photographs, and OneMap tiles
 - `styles.css` — Airbnb-inspired responsive CSS
 - `bars-data.js` — Verified 2026 `the50.com` Singapore bar catalog
-- `app.js` — App logic, Leaflet/Google Maps integration, crawl optimizer, and KML/JSON/CSV exports
-- `assets/photos/` — 12 custom editorial cocktail bar photographs
+- `app.js` — App logic, OneMap Singapore integration, crawl optimizer, and KML/JSON/CSV exports
+- `assets/photos/` — 34 real photographs of the actual Singapore cocktail bars
 - `assets/icons/` — Full-bleed iPhone `apple-touch-icon.png` (180×180), `icon-192.png`, `icon-512.png`, and `icon-maskable-512.png`

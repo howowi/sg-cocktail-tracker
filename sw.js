@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sg50-bars-v3';
+const CACHE_NAME = 'sg50-bars-v4';
 
 const CORE_ASSETS = [
   './',
@@ -9,19 +9,7 @@ const CORE_ASSETS = [
   './manifest.webmanifest',
   './assets/icons/apple-touch-icon.png',
   './assets/icons/icon-192.png',
-  './assets/icons/icon-512.png',
-  './assets/photos/modern_classic.jpg',
-  './assets/photos/heritage.jpg',
-  './assets/photos/art_deco.jpg',
-  './assets/photos/hifi.jpg',
-  './assets/photos/ginza.jpg',
-  './assets/photos/speakeasy.jpg',
-  './assets/photos/grand_hotel.jpg',
-  './assets/photos/rooftop.jpg',
-  './assets/photos/modern_shophouse.jpg',
-  './assets/photos/botanical.jpg',
-  './assets/photos/korean.jpg',
-  './assets/photos/spice.jpg'
+  './assets/icons/icon-512.png'
 ];
 
 self.addEventListener('install', event => {

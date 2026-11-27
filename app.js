@@ -74,7 +74,11 @@
   function getRecord(id) { return state.records[id] || { visited: false, wishlist: false, rating: 0, notes: '', drink: '', visitDate: '' }; }
   function updateRecord(id, patch) { state.records[id] = { ...getRecord(id), ...patch }; saveState(); renderAll(); }
   function esc(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-  function photoSrc(bar) { return `./assets/photos/${bar.photo || 'modern_classic'}.jpg`; }
+  const LEGACY_AI_PHOTOS = new Set(['art_deco', 'botanical', 'ginza', 'grand_hotel', 'heritage', 'hifi', 'korean', 'modern_classic', 'modern_shophouse', 'rooftop', 'speakeasy', 'spice']);
+  function photoSrc(bar) {
+    const p = bar.photo && !LEGACY_AI_PHOTOS.has(bar.photo) ? bar.photo : 'jigger-and-pony';
+    return `./assets/photos/${p}.jpg`;
+  }
 
   function showToast(msg) {
     const el = document.getElementById('toast');
@@ -943,7 +947,7 @@
       address: document.getElementById('cbAddress').value.trim(),
       lat: base[0] + (Math.random() - 0.5) * 0.002, lng: base[1] + (Math.random() - 0.5) * 0.002,
       style: document.getElementById('cbStyle').value.trim() || 'Cocktail Bar', cats: ['speakeasy'],
-      photo: 'modern_classic', googleRating: 4.8, price: '$$$', avgDrink: 'S$26',
+      photo: 'jigger-and-pony', googleRating: 4.8, price: '$$$', avgDrink: 'S$26',
       hours: 'Check Google Maps', shortHours: 'Open evenings',
       signature: document.getElementById('cbSignature').value.trim() || 'House signature cocktail',
       summary: 'Custom Singapore cocktail bar added to your personal passport.'
