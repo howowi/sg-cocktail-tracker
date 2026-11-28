@@ -1138,8 +1138,8 @@
       const r = getRecord(bar.id);
       const cIdx = state.crawl.indexOf(bar.id);
       const isCrawlStop = state.mapLayers.showCrawl && cIdx >= 0;
-      const isVisited = !!r.visited;
-      const isWishlist = !!r.wishlist;
+      const showVisited = state.mapLayers.onlyVisited && !!r.visited;
+      const showWishlist = state.mapLayers.onlyWishlist && !!r.wishlist;
       const isSel = bar.id === state.selectedMapId;
       const alcMatch = parsedAlc ? matchBarAlcohol(bar, parsedAlc) : null;
       const isAlcSpec = !!(alcMatch && alcMatch.tier === 'specialty');
@@ -1147,11 +1147,11 @@
       const ratingNum = bar.googleRating ? bar.googleRating.toFixed(1) : null;
       const label = isCrawlStop
         ? `${cIdx + 1} · ${bar.name.split(' ')[0]}`
-        : (bar.asiaRank ? `#${bar.asiaRank}` : (ratingNum ? (isAlcSpec && !isVisited ? ratingNum : `${ratingNum}★`) : (bar.avgDrink || bar.price)));
+        : (bar.asiaRank ? `#${bar.asiaRank}` : (ratingNum ? (isAlcSpec && !showVisited ? ratingNum : `${ratingNum}★`) : (bar.avgDrink || bar.price)));
 
-      const icons = `${isVisited ? '<span class="m-check">✓</span>' : ''}${isWishlist ? '<span class="m-heart">♥</span>' : ''}${isAlcSpec && !isVisited ? '<span class="m-star">★</span>' : ''}`;
-      const cls = `airbnb-marker ${isSel ? 'active' : ''} ${isVisited ? 'visited' : ''} ${isWishlist ? 'wishlist' : ''} ${isCrawlStop && !isSel ? 'crawl' : ''} ${isAlcSpec ? 'alcohol-spec' : ''}`;
-      const zIdx = isSel ? 1000 : (isCrawlStop ? 700 : (isAlcSpec ? 650 : (isVisited ? 550 : (isWishlist ? 500 : (bar.asiaRank ? 300 : 100)))));
+      const icons = `${showVisited ? '<span class="m-check">✓</span>' : ''}${showWishlist ? '<span class="m-heart">♥</span>' : ''}${isAlcSpec && !showVisited ? '<span class="m-star">★</span>' : ''}`;
+      const cls = `airbnb-marker ${isSel ? 'active' : ''} ${showVisited ? 'visited' : ''} ${showWishlist ? 'wishlist' : ''} ${isCrawlStop && !isSel ? 'crawl' : ''} ${isAlcSpec ? 'alcohol-spec' : ''}`;
+      const zIdx = isSel ? 1000 : (isCrawlStop ? 700 : (isAlcSpec ? 650 : (showVisited ? 550 : (showWishlist ? 500 : (bar.asiaRank ? 300 : 100)))));
 
       const icon = L.divIcon({
         className: 'leaflet-div-icon',
