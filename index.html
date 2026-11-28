@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>SG 50 — Singapore Cocktail Bars</title>
-  <meta name="description" content="Explore and track all 34 Singapore cocktail bars from the50.com with interactive maps and Google Maps bar crawls." />
+  <title>SG 50 — Singapore Cocktail &amp; Bar Guide</title>
+  <meta name="description" content="Explore and track 79 top Singapore cocktail, champagne, wine, whisky, and sake bars from the50.com and Central Area 4.6★+ Google Maps favorites with Alcohol Search and interactive OneMap." />
 
   <!-- iPhone / iOS PWA Support -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -38,15 +38,23 @@
         <span>sg50</span>
       </div>
 
-      <div id="desktopSearchPill" class="desktop-search-pill" role="button" tabindex="0">
-        <span id="dsArea" class="ds-seg">Anywhere in SG</span>
-        <span class="ds-div"></span>
-        <span id="dsCat" class="ds-seg">All lists</span>
-        <span class="ds-div"></span>
-        <span id="dsQuery" class="ds-seg muted">Search bars or drinks</span>
-        <span class="ds-go">
-          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.6"><circle cx="9" cy="9" r="6"/><path d="M14 14l4 4" stroke-linecap="round"/></svg>
-        </span>
+      <div class="desktop-search-group">
+        <div id="desktopSearchPill" class="desktop-search-pill" role="button" tabindex="0">
+          <span id="dsArea" class="ds-seg">Anywhere in SG</span>
+          <span class="ds-div"></span>
+          <span id="dsCat" class="ds-seg">All bars</span>
+          <span class="ds-div"></span>
+          <span id="dsQuery" class="ds-seg muted">79 bars</span>
+          <span class="ds-go">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.6"><circle cx="9" cy="9" r="6"/><path d="M14 14l4 4" stroke-linecap="round"/></svg>
+          </span>
+        </div>
+
+        <button id="btnDesktopAlcohol" class="alcohol-trigger-btn desktop" type="button" aria-label="Search by alcohol or spirit">
+          <svg class="alc-glass-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 22h8M12 15v7M6 3h12l-1.3 6.5a5 5 0 01-4.7 5.5 5 5 0 01-4.7-5.5L6 3z"/></svg>
+          <span id="desktopAlcoholLabel">Alcohol search</span>
+          <span id="desktopAlcoholClear" class="alc-inline-clear hidden" role="button" aria-label="Clear alcohol search">✕</span>
+        </button>
       </div>
 
       <nav class="desktop-nav-actions" aria-label="Desktop Navigation">
@@ -63,11 +71,15 @@
     <!-- Mobile Floating Pill Search Bar (Airbnb iOS Style) -->
     <div id="mobileSearchWrap" class="mobile-search-wrap">
       <button id="mobileSearchPill" class="mobile-search-pill">
-        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#222" stroke-width="2.2" style="flex-shrink:0;"><circle cx="9" cy="9" r="6"/><path d="M14 14l4 4" stroke-linecap="round"/></svg>
+        <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="#222" stroke-width="2.2" style="flex-shrink:0;"><circle cx="9" cy="9" r="6"/><path d="M14 14l4 4" stroke-linecap="round"/></svg>
         <div style="min-width:0;flex:1;">
           <div id="mspTitle" class="msp-title">Where to drink?</div>
-          <div id="mspSub" class="msp-sub">Singapore · Any district · 34 bars</div>
+          <div id="mspSub" class="msp-sub">Central SG · 79 bars</div>
         </div>
+      </button>
+      <button id="btnMobileAlcohol" class="alcohol-trigger-btn mobile" type="button" aria-label="Search by alcohol or spirit">
+        <svg class="alc-glass-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8 22h8M12 15v7M6 3h12l-1.3 6.5a5 5 0 01-4.7 5.5 5 5 0 01-4.7-5.5L6 3z"/></svg>
+        <span id="mobileAlcoholLabel">Alcohol</span>
       </button>
       <button id="btnMobileFilters" class="filter-circle-btn" aria-label="Filters">
         <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="#222" stroke-width="1.8"><path d="M3 6h14M6 10h8M8 14h4" stroke-linecap="round"/></svg>
@@ -87,6 +99,7 @@
 
   <!-- ==================== TAB 1: EXPLORE PHOTO GRID ==================== -->
   <main id="tabExplore" class="main-content">
+    <div id="alcoholBanner" class="alcohol-banner hidden"></div>
     <div id="exploreGrid" class="listing-grid"></div>
   </main>
 
@@ -103,6 +116,10 @@
     </div>
 
     <div class="map-layer-pills no-scrollbar" role="group" aria-label="Map overlays">
+      <div id="mapAlcoholPill" class="layer-pill layer-alcohol active hidden">
+        <button id="btnMapAlcoholSwitch" class="map-alc-switch" type="button"></button>
+        <button id="btnMapAlcoholClear" class="map-alc-clear" type="button" aria-label="Clear alcohol filter">✕</button>
+      </div>
       <button id="btnMapCrawl" class="layer-pill layer-crawl" type="button" aria-pressed="false">
         <span class="layer-dot crawl-dot"></span>
         <span id="mapCrawlLabel">Crawl route</span>
@@ -184,6 +201,10 @@
             <div style="font-size:14.5px;font-weight:700;">Grand Hotels &amp; Bugis</div>
             <div style="font-size:13px;color:var(--ink-secondary);margin-top:3px;">5 stops · ATLAS, Nutmeg &amp; Clove, MO Bar</div>
           </button>
+          <button data-preset="champagne-whisky" class="preset-card">
+            <div style="font-size:14.5px;font-weight:700;">Champagne &amp; Whisky Trail</div>
+            <div style="font-size:13px;color:var(--ink-secondary);margin-top:3px;">5 stops · Convivial, Emerald Room to ATLAS</div>
+          </button>
         </div>
       </div>
 
@@ -202,15 +223,15 @@
     <div class="section-header-row">
       <div>
         <h1 class="section-title">Your Passport</h1>
-        <p class="section-sub">Track visited bars, ratings, and tasting notes.</p>
+        <p class="section-sub">Track visited bars, ratings, and tasting notes across Singapore.</p>
       </div>
       <button id="btnPassportMenu" class="btn-outline" style="padding:8px 14px;font-size:13px;">Settings</button>
     </div>
 
     <div class="passport-hero">
       <div style="flex:1;min-width:220px;">
-        <div style="font-size:13px;font-weight:600;color:var(--ink-secondary);">the50.com Singapore Progress</div>
-        <div id="passportHeadline" style="font-size:24px;font-weight:700;margin-top:2px;letter-spacing:-0.02em;">0 of 34 bars visited</div>
+        <div style="font-size:13px;font-weight:600;color:var(--ink-secondary);">Singapore Bar Passport Progress</div>
+        <div id="passportHeadline" style="font-size:24px;font-weight:700;margin-top:2px;letter-spacing:-0.02em;">0 of 79 bars visited</div>
         <div class="progress-wide"><div id="passportBarFill" class="progress-wide-fill" style="width:0%"></div></div>
       </div>
     </div>
@@ -247,6 +268,40 @@
     </div>
   </div>
 
+  <!-- ==================== ALCOHOL SEARCH MODAL SHEET ==================== -->
+  <div id="alcoholSheetBackdrop" class="sheet-backdrop hidden">
+    <div class="sheet-modal alcohol-sheet-modal" role="dialog" aria-modal="true" aria-label="Alcohol Search">
+      <div class="sheet-head">
+        <button id="closeAlcoholSheet" style="border:none;background:none;font-size:18px;cursor:pointer;padding:4px;" aria-label="Close">✕</button>
+        <span>Alcohol Search</span>
+        <button id="btnAlcoholHeaderClear" class="sheet-link-clear hidden" type="button">Clear</button>
+      </div>
+      <div class="sheet-body alcohol-sheet-body">
+        <div class="alcohol-search-box">
+          <svg class="alcohol-search-ico" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.1"><circle cx="9" cy="9" r="6"/><path d="M14 14l4 4" stroke-linecap="round"/></svg>
+          <input id="alcoholSearchInput" class="alcohol-search-input" type="search" autocomplete="off" placeholder="Search champagne, Japanese whisky, mezcal, umeshu..." />
+          <button id="btnAlcoholInputClear" class="alcohol-input-clear hidden" type="button" aria-label="Clear text">✕</button>
+        </div>
+
+        <div id="alcoholLivePreview" class="alcohol-live-preview hidden"></div>
+
+        <div>
+          <div class="alcohol-section-kicker">Browse by spirit or drink</div>
+          <div id="alcoholChipGrid" class="alcohol-chip-grid"></div>
+        </div>
+
+        <div>
+          <div class="alcohol-section-kicker">Popular cravings</div>
+          <div id="alcoholPopularPills" class="pill-select-grid"></div>
+        </div>
+      </div>
+      <div class="sheet-foot">
+        <button id="btnClearAlcoholSheet" style="border:none;background:none;font-size:14px;font-weight:600;text-decoration:underline;cursor:pointer;">Show all bars</button>
+        <button id="btnApplyAlcoholSheet" class="btn-rausch" style="padding:11px 22px;font-size:14px;">Show bars</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== SEARCH & FILTERS MODAL SHEET ==================== -->
   <div id="filterSheetBackdrop" class="sheet-backdrop hidden">
     <div class="sheet-modal" role="dialog" aria-modal="true">
@@ -276,7 +331,7 @@
         <div>
           <div style="font-size:14px;font-weight:700;margin-bottom:10px;">Sort by</div>
           <div id="sheetSortPills" class="pill-select-grid">
-            <button data-sort="rank" class="pill-opt active">the50.com Rank</button>
+            <button data-sort="rank" class="pill-opt active">Curated Rank</button>
             <button data-sort="rating" class="pill-opt">Highest Rated</button>
             <button data-sort="name" class="pill-opt">Name (A–Z)</button>
           </div>
@@ -318,7 +373,7 @@
         <div style="display:flex;flex-direction:column;gap:10px;">
           <div style="font-size:14px;font-weight:700;">Maps &amp; Navigation</div>
           <div style="font-size:12.5px;color:var(--ink-secondary);line-height:1.5;">Interactive map is powered by <strong>OneMap Singapore (SLA)</strong> — 100% free with Default &amp; Night styles and live GPS. Walking directions and place links open natively in Google Maps.</div>
-          <button id="setExportKml" class="btn-outline" style="width:100%;">Export All 34 Bars to Google My Maps (.kml)</button>
+          <button id="setExportKml" class="btn-outline" style="width:100%;">Export All 79 Bars to Google My Maps (.kml)</button>
         </div>
 
         <!-- Add Custom Bar & Data Backup -->

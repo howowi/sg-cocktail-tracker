@@ -1,5 +1,5 @@
 (() => {
-  const { officialBars, presets, areaCoords } = window.SG_BARS_DATA;
+  const { officialBars, presets, areaCoords, alcoholCatalog = [], popularAlcoholSearches = [] } = window.SG_BARS_DATA;
   const STORAGE_KEY = 'sg50_airbnb_pwa_v1';
   const MAP_THEME_STORAGE = 'sg50_map_theme';
 
@@ -14,15 +14,56 @@
   const CATEGORIES = [
     { id: 'all', label: 'All bars', icon: '<path d="M5 4h14l-7 8.5L5 4zm7 8.5V20m-4 0h8" stroke-linecap="round" stroke-linejoin="round"/>' },
     { id: 'top50', label: '50 Best', icon: '<path d="M12 3l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 16.4 6.7 19.1l1-5.8-4.2-4.1 5.9-.9L12 3z" stroke-linejoin="round"/>' },
-    { id: 'world', label: "World's Best", icon: '<circle cx="12" cy="12" r="9"/><path d="M3.6 9h16.8M3.6 15h16.8M12 3a13 13 0 010 18M12 3a13 13 0 000 18"/>' },
+    { id: 'toprated', label: '4.6★+ Top', icon: '<path d="M12 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 14.4 7.2 16.9l.9-5.4-3.9-3.8 5.4-.8L12 2z" stroke-linejoin="round"/><path d="M5 21h14" stroke-linecap="round"/>' },
+    { id: 'wine', label: 'Wine & Bubbles', icon: '<path d="M8 22h8M12 15v7M7 3h10l-1 6.5a4 4 0 01-4 4 4 4 0 01-4-4L7 3z" stroke-linecap="round" stroke-linejoin="round"/>' },
+    { id: 'whisky', label: 'Whisky', icon: '<path d="M5 6h14l-1.4 13a1.5 1.5 0 01-1.5 1.3H7.9a1.5 1.5 0 01-1.5-1.3L5 6z" stroke-linejoin="round"/><path d="M6.2 13h11.6M9.5 16h5" stroke-linecap="round"/>' },
+    { id: 'sake', label: 'Sake & Japan', icon: '<path d="M9 3h6l-1 3.5c2 1.2 3 3.5 3 6.5v6a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 017 19v-6c0-3 1-5.3 3-6.5L9 3z" stroke-linejoin="round"/><path d="M8 13h8" stroke-linecap="round"/>' },
     { id: 'speakeasy', label: 'Speakeasy', icon: '<circle cx="8" cy="15" r="4"/><path d="M11 12l8-8m-3 3l2 2m-4-1l2 2" stroke-linecap="round"/>' },
     { id: 'hotel', label: 'Hotel bars', icon: '<path d="M4 20h16M6 20V5a1 1 0 011-1h10a1 1 0 011 1v15M10 8h1m2 0h1m-4 4h1m2 0h1m-3 8v-4h2v4" stroke-linecap="round"/>' },
     { id: 'ginza', label: 'Ginza', icon: '<path d="M6 5h12l-1.5 14a1 1 0 01-1 .9H8.5a1 1 0 01-1-.9L6 5z"/><circle cx="12" cy="13" r="2.8"/>' },
     { id: 'listening', label: 'Listening', icon: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 6.5a5.5 5.5 0 015.5 5.5" stroke-linecap="round"/>' },
-    { id: 'heritage', label: 'Heritage', icon: '<path d="M3 10l9-6 9 6M5 10v10h14V10M9 20v-6h6v6" stroke-linecap="round" stroke-linejoin="round"/>' },
     { id: 'rooftop', label: 'Rooftop', icon: '<path d="M3 20h18M5 20v-7h4v7m2 0V9h4v11m2 0v-5h3v5M16 5a2.5 2.5 0 01-3.4 2.3A2.5 2.5 0 0016 5z" stroke-linecap="round" stroke-linejoin="round"/>' },
-    { id: 'sustainable', label: 'Sustainable', icon: '<path d="M19 5C11 5 6 10 6 19c9 0 13-5 13-14zM6 19l6-6" stroke-linecap="round" stroke-linejoin="round"/>' }
+    { id: 'heritage', label: 'Heritage', icon: '<path d="M3 10l9-6 9 6M5 10v10h14V10M9 20v-6h6v6" stroke-linecap="round" stroke-linejoin="round"/>' },
+    { id: 'sustainable', label: 'Sustainable', icon: '<path d="M19 5C11 5 6 10 6 19c9 0 13-5 13-14zM6 19l6-6" stroke-linecap="round" stroke-linejoin="round"/>' },
+    { id: 'world', label: "World's Best", icon: '<circle cx="12" cy="12" r="9"/><path d="M3.6 9h16.8M3.6 15h16.8M12 3a13 13 0 010 18M12 3a13 13 0 000 18"/>' }
   ];
+
+  // Broad category triggers (matches entire canonical alcohol bucket) vs specific sub-styles
+  const BROAD_ALCOHOL_TRIGGERS = {
+    champagne: ['champagne', 'champagne & sparkling', 'bubbly', 'bubbles', 'sparkling', 'sparkling wine'],
+    whisky: ['whisky', 'whiskey', 'whiskies', 'whiskeys', 'whisky & bourbon', 'whisky, scotch & bourbon', 'dram', 'drams'],
+    wine: ['wine', 'wines', 'vino', 'wine & natural wine'],
+    gin: ['gin', 'gins', 'gin & martinis'],
+    tequila: ['tequila', 'agave', 'tequila & mezcal', 'tequila, mezcal & agave'],
+    rum: ['rum', 'rums', 'rhum', 'aged rum & tiki'],
+    sake: ['sake', 'nihonshu', 'sake & shochu', 'sake, shochu & umeshu', 'rice spirit', 'rice spirits'],
+    amaro: ['amaro', 'amari', 'spritz', 'aperitivo', 'amaro & spritz', 'amaro, vermouth & spritz', 'vermouth'],
+    cognac: ['cognac', 'brandy', 'cognac & sherry', 'cognac, brandy & sherry'],
+    vodka: ['vodka', 'vodka & espresso martinis'],
+    beer: ['beer', 'beers', 'craft beer', 'craft beer & draft', 'draft', 'draught'],
+    mocktails: ['mocktail', 'mocktails', 'zero-proof', 'zero proof', 'zero-proof & mocktails', 'non-alcoholic', 'non alcoholic', 'alcohol-free', 'alcohol free']
+  };
+
+  // Synonym expansions for specific drink queries (e.g. "plum wine" -> matches "umeshu")
+  const SUBSTYLE_SYNONYMS = {
+    'plum wine': ['umeshu', 'plum wine'],
+    'umeshu': ['umeshu', 'plum wine'],
+    'scotch': ['scotch', 'islay', 'speyside', 'single malt'],
+    'single malt': ['single malt', 'scotch', 'samaroli'],
+    'japanese whisky': ['japanese whisky', 'japanese whiskies', 'yamazaki', 'hakushu', 'hibiki', 'toki', 'kakubin', 'japanese malt'],
+    'grower champagne': ['grower', 'blanc de blancs'],
+    'natural wine': ['natural wine', 'natural wines', 'low-intervention', 'skin-contact', 'pét-nat', 'pet-nat', 'biodynamic'],
+    'pet-nat': ['pét-nat', 'pet-nat'],
+    'prosecco': ['prosecco', 'franciacorta'],
+    'bourbon': ['bourbon', 'rye', 'american'],
+    'old fashioned': ['old fashioned', 'bourbon', 'rye'],
+    'g&t': ['g&t', 'gin & tonic', 'gin and tonic'],
+    'espresso martini': ['espresso martini', 'kopi-o'],
+    'negroni': ['negroni', 'campari', 'aperitivo'],
+    'margarita': ['margarita', 'agave', 'tequila'],
+    'craft beer': ['craft beer', 'ipa', 'draft', 'lager', 'guinness', 'ale', 'stout'],
+    'sherry': ['sherry', 'amontillado', 'oloroso', 'fino']
+  };
 
   const state = {
     records: {},
@@ -34,7 +75,8 @@
     mapLayers: { showCrawl: false, onlyWishlist: false, onlyVisited: false },
     selectedMapId: null,
     detailId: null,
-    filters: { search: '', cat: 'all', area: 'all', status: 'all', sort: 'rank' },
+    filters: { search: '', cat: 'all', area: 'all', status: 'all', sort: 'rank', alcohol: '' },
+    alcoholDraft: '',
     leaflet: {
       map: null,
       tileLayer: null,
@@ -89,6 +131,149 @@
     window._toastT = setTimeout(() => el.classList.add('hidden'), 2400);
   }
 
+  // ==================== ALCOHOL SEARCH ENGINE ====================
+  function getCatalogItem(id) {
+    return alcoholCatalog.find(c => c.id === id) || null;
+  }
+
+  function normalizeText(str) {
+    return String(str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  }
+
+  function resolveAlcoholQuery(rawQuery) {
+    if (rawQuery && typeof rawQuery === 'object' && rawQuery.norm) return rawQuery;
+    const clean = String(rawQuery || '').trim();
+    const norm = normalizeText(clean);
+    if (!norm) return null;
+
+    // 1. Check if it's a broad canonical category trigger (e.g. "champagne", "whisky", "sake")
+    for (const [catId, triggers] of Object.entries(BROAD_ALCOHOL_TRIGGERS)) {
+      if (triggers.includes(norm) || catId === norm) {
+        const cat = getCatalogItem(catId);
+        return {
+          raw: clean,
+          norm,
+          mode: 'broad',
+          catId,
+          displayLabel: cat ? cat.label : clean,
+          emoji: cat ? cat.emoji : '🍸'
+        };
+      }
+    }
+
+    // 2. Check if it maps to a category alias as a specific sub-style (e.g. "grower champagne", "umeshu", "mezcal")
+    let matchedCat = null;
+    for (const cat of alcoholCatalog) {
+      if (cat.aliases.some(a => normalizeText(a) === norm || norm.includes(normalizeText(a)))) {
+        matchedCat = cat;
+        break;
+      }
+    }
+
+    const titleCase = clean.replace(/\b\w/g, ch => ch.toUpperCase());
+    return {
+      raw: clean,
+      norm,
+      mode: 'substyle',
+      catId: matchedCat ? matchedCat.id : null,
+      displayLabel: titleCase,
+      emoji: matchedCat ? matchedCat.emoji : '🍸'
+    };
+  }
+
+  function textMatchesSubstyle(haystack, normQuery) {
+    const h = normalizeText(haystack);
+    if (!h) return false;
+    if (h.includes(normQuery)) return true;
+    const syns = SUBSTYLE_SYNONYMS[normQuery];
+    if (syns && syns.some(s => h.includes(normalizeText(s)))) return true;
+    const tokens = normQuery.split(/\s+/).filter(t => t.length >= 2);
+    if (tokens.length > 1 && tokens.every(t => h.includes(t))) return true;
+    return false;
+  }
+
+  function matchBarAlcohol(bar, rawQuery) {
+    const parsed = typeof rawQuery === 'object' && rawQuery ? rawQuery : resolveAlcoholQuery(rawQuery);
+    if (!parsed) return null;
+    const alc = bar.alcohol || { specialties: {}, serves: {} };
+    const specs = alc.specialties || {};
+    const serves = alc.serves || {};
+
+    if (parsed.mode === 'broad') {
+      const catId = parsed.catId;
+      if (specs[catId]) {
+        const note = specs[catId];
+        const exactMention = normalizeText(note).includes(parsed.norm) || parsed.norm !== 'champagne';
+        return { tier: 'specialty', catId, note, exactMention, emoji: parsed.emoji };
+      }
+      if (serves[catId]) {
+        const note = serves[catId];
+        const exactMention = normalizeText(note).includes(parsed.norm) || parsed.norm !== 'champagne';
+        return { tier: 'serves', catId, note, exactMention, emoji: parsed.emoji };
+      }
+      return null;
+    }
+
+    // Sub-style / specific craving match
+    for (const [k, note] of Object.entries(specs)) {
+      if (textMatchesSubstyle(`${k} ${note}`, parsed.norm)) {
+        const cat = getCatalogItem(k);
+        return { tier: 'specialty', catId: k, note, exactMention: true, emoji: (cat && cat.emoji) || parsed.emoji };
+      }
+    }
+    for (const [k, note] of Object.entries(serves)) {
+      if (textMatchesSubstyle(`${k} ${note}`, parsed.norm)) {
+        const cat = getCatalogItem(k);
+        return { tier: 'serves', catId: k, note, exactMention: true, emoji: (cat && cat.emoji) || parsed.emoji };
+      }
+    }
+    // Check signature / summary / style for niche drink names (e.g. "Kaya Toast", "Sazerac", "Vesper", "Bellini")
+    if (textMatchesSubstyle(`${bar.signature} ${bar.summary} ${bar.style}`, parsed.norm)) {
+      return { tier: 'serves', catId: parsed.catId, note: bar.signature || bar.style, exactMention: true, emoji: parsed.emoji };
+    }
+    return null;
+  }
+
+  function alcoholRelevanceScore(bar, match, parsedAlc) {
+    const identity = normalizeText(`${bar.name} ${bar.style} ${bar.ribbon || ''}`);
+    const qWords = parsedAlc.norm.split(/\s+/).filter(w => w.length >= 3);
+    const idMatchesQuery = identity.includes(parsedAlc.norm) || (qWords.length > 0 && qWords.every(w => identity.includes(w)));
+    const idMatchesCat = parsedAlc.catId ? (
+      (parsedAlc.catId === 'champagne' && /champagne|spritz|wine|bubbles/.test(identity)) ||
+      (parsedAlc.catId === 'whisky' && /whisky|whiskey|single cask|malt|spirits/.test(identity)) ||
+      (parsedAlc.catId === 'wine' && /wine|champagne/.test(identity)) ||
+      (parsedAlc.catId === 'gin' && /gin|martini/.test(identity)) ||
+      (parsedAlc.catId === 'sake' && /sake|shochu|umeshu|rice spirit|japanese/.test(identity)) ||
+      (parsedAlc.catId === 'tequila' && /agave|tequila|mezcal/.test(identity)) ||
+      (parsedAlc.catId === 'rum' && /rum|punch/.test(identity)) ||
+      (parsedAlc.catId === 'amaro' && /spritz|italian|amaro/.test(identity)) ||
+      (parsedAlc.catId === 'beer' && /beer/.test(identity)) ||
+      (parsedAlc.catId === 'cognac' && /rare spirits|ginza/.test(identity))
+    ) : false;
+    const isDedicated = idMatchesQuery ? 2 : (idMatchesCat ? 1 : 0);
+    const exactBonus = match.exactMention ? 1 : 0;
+    const ratingScore = (bar.googleRating || 4.5) * 10 + (bar.asiaRank ? 1.5 : 0) + (bar.worldRank ? 1.5 : 0);
+    return isDedicated * 1000 + exactBonus * 200 + ratingScore;
+  }
+
+  function countAlcoholMatches(bars, rawQuery) {
+    const parsed = resolveAlcoholQuery(rawQuery);
+    if (!parsed) return { specialty: [], serves: [], total: 0, parsed: null };
+    const specialty = [];
+    const serves = [];
+    bars.forEach(b => {
+      const m = matchBarAlcohol(b, parsed);
+      if (m) {
+        if (m.tier === 'specialty') specialty.push({ bar: b, match: m });
+        else serves.push({ bar: b, match: m });
+      }
+    });
+    const cmp = (a, b) => alcoholRelevanceScore(b.bar, b.match, parsed) - alcoholRelevanceScore(a.bar, a.match, parsed) || (b.bar.reviewCount || 0) - (a.bar.reviewCount || 0);
+    specialty.sort(cmp);
+    serves.sort(cmp);
+    return { specialty, serves, total: specialty.length + serves.length, parsed };
+  }
+
   // Google Maps Universal URLs (open natively in iPhone Google Maps app!)
   function gmapsPlaceUrl(b) { return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${b.name}, ${b.address}`)}`; }
   function gmapsDirUrl(b) { return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${b.name}, ${b.address}`)}&travelmode=walking`; }
@@ -113,8 +298,44 @@
     return `${w < 1 ? `${Math.round(w * 1000)}m` : `${w.toFixed(1)} km`} · ${m} min walk`;
   }
 
-  function getFilteredBars() {
+  function sortBarsList(list) {
+    return list.sort((a, b) => {
+      if (state.filters.sort === 'name') return a.name.localeCompare(b.name);
+      if (state.filters.sort === 'rating') {
+        const ra = getRecord(a.id).rating || a.googleRating || 4.5;
+        const rb = getRecord(b.id).rating || b.googleRating || 4.5;
+        return rb - ra || (b.reviewCount || 0) - (a.reviewCount || 0) || a.name.localeCompare(b.name);
+      }
+      // Curated Rank: World's 50 Best -> Asia's 50 Best -> 50 Discovery (by rating) -> Central Area 4.6★+ (by rating & reviews)
+      const tierScore = x => {
+        if (x.worldRank) return x.worldRank;
+        if (x.asiaRank) return 100 + x.asiaRank;
+        if (x.source === 'the50' || x.the50Url) return 300;
+        return 500;
+      };
+      const ta = tierScore(a), tb = tierScore(b);
+      if (ta !== tb) return ta - tb;
+      const ga = a.googleRating || 4.5, gb = b.googleRating || 4.5;
+      if (gb !== ga) return gb - ga;
+      return (b.reviewCount || 0) - (a.reviewCount || 0) || a.name.localeCompare(b.name);
+    });
+  }
+
+  function barAlcoholText(bar) {
+    const alc = bar.alcohol || {};
+    return [
+      ...Object.keys(alc.specialties || {}),
+      ...Object.values(alc.specialties || {}),
+      ...Object.keys(alc.serves || {}),
+      ...Object.values(alc.serves || {})
+    ].join(' ');
+  }
+
+  function getFilteredBars(opts = {}) {
+    const ignoreAlcohol = !!opts.ignoreAlcohol;
     const q = state.filters.search.trim().toLowerCase();
+    const parsedAlc = !ignoreAlcohol ? resolveAlcoholQuery(state.filters.alcohol) : null;
+
     const list = getAllBars().filter(b => {
       const r = getRecord(b.id);
       if (state.filters.cat !== 'all' && !(b.cats || []).includes(state.filters.cat)) return false;
@@ -122,27 +343,24 @@
       if (state.filters.status === 'visited' && !r.visited) return false;
       if (state.filters.status === 'unvisited' && r.visited) return false;
       if (state.filters.status === 'wishlist' && !r.wishlist) return false;
-      if (q && !`${b.name} ${b.area} ${b.landmark} ${b.address} ${b.style} ${b.signature} ${b.summary} ${r.drink} ${r.notes}`.toLowerCase().includes(q)) return false;
+      if (parsedAlc && !matchBarAlcohol(b, parsedAlc)) return false;
+      if (q && !`${b.name} ${b.area} ${b.landmark} ${b.address} ${b.style} ${b.signature} ${b.summary} ${barAlcoholText(b)} ${r.drink} ${r.notes}`.toLowerCase().includes(q)) return false;
       return true;
     });
 
-    list.sort((a, b) => {
-      if (state.filters.sort === 'name') return a.name.localeCompare(b.name);
-      if (state.filters.sort === 'rating') {
-        const ra = getRecord(a.id).rating || a.googleRating || 4.5;
-        const rb = getRecord(b.id).rating || b.googleRating || 4.5;
-        return rb - ra || a.name.localeCompare(b.name);
-      }
-      const sc = x => x.worldRank ? x.worldRank : (x.asiaRank ? 100 + x.asiaRank : 500);
-      return sc(a) - sc(b) || a.name.localeCompare(b.name);
-    });
-    return list;
+    return sortBarsList(list);
   }
 
   // ==================== AIRBNB CARD TEMPLATE ====================
-  function listingCardHtml(bar) {
+  function listingCardHtml(bar, alcoholMatch) {
     const r = getRecord(bar.id);
     const ratingVal = r.rating ? `${r.rating}.0` : (bar.googleRating ? bar.googleRating.toFixed(1) : '4.6');
+    const pourHtml = alcoholMatch
+      ? `<div class="card-pour-note ${alcoholMatch.tier === 'specialty' ? 'specialty' : ''}">
+          <span class="card-pour-badge">${alcoholMatch.tier === 'specialty' ? '★ Specialty' : alcoholMatch.emoji}</span>${esc(alcoholMatch.note)}
+        </div>`
+      : '';
+
     return `
       <article class="listing-card" data-open="${bar.id}">
         <div class="card-photo-box">
@@ -164,7 +382,8 @@
           </div>
           <div class="card-sub">${esc(bar.area)} · ${esc(bar.style)}</div>
           <div class="card-sub">${esc(bar.landmark)} · ${esc(bar.shortHours)}</div>
-          <div class="card-price-row"><strong>${esc(bar.avgDrink || bar.price)}</strong> avg cocktail</div>
+          <div class="card-price-row"><strong>${esc(bar.avgDrink || bar.price)}</strong> avg drink</div>
+          ${pourHtml}
         </div>
       </article>
     `;
@@ -189,14 +408,33 @@
     document.getElementById('mobCrawlBadge').classList.toggle('hidden', state.crawl.length === 0);
 
     // Search pill text
-    const areaTxt = state.filters.area === 'all' ? 'Any district' : state.filters.area;
+    const areaTxt = state.filters.area === 'all' ? 'Central SG' : state.filters.area;
     const catObj = CATEGORIES.find(c => c.id === state.filters.cat) || CATEGORIES[0];
     document.getElementById('dsArea').textContent = state.filters.area === 'all' ? 'Anywhere in SG' : state.filters.area;
     document.getElementById('dsCat').textContent = catObj.label;
-    document.getElementById('dsQuery').textContent = state.filters.search ? state.filters.search : `${filtered.length} cocktail bars`;
+    document.getElementById('dsQuery').textContent = state.filters.search ? state.filters.search : `${filtered.length} bar${filtered.length === 1 ? '' : 's'}`;
 
     document.getElementById('mspTitle').textContent = state.filters.search ? state.filters.search : 'Where to drink?';
-    document.getElementById('mspSub').textContent = `${areaTxt} · ${catObj.label} · ${filtered.length} bar${filtered.length === 1 ? '' : 's'}`;
+    document.getElementById('mspSub').textContent = `${areaTxt} · ${filtered.length} bar${filtered.length === 1 ? '' : 's'}`;
+
+    // Alcohol Search Top-Bar Triggers (Desktop + Mobile)
+    const parsedAlc = resolveAlcoholQuery(state.filters.alcohol);
+    const btnDeskAlc = document.getElementById('btnDesktopAlcohol');
+    const btnMobAlc = document.getElementById('btnMobileAlcohol');
+    const deskAlcClear = document.getElementById('desktopAlcoholClear');
+    if (parsedAlc) {
+      btnDeskAlc.classList.add('active');
+      document.getElementById('desktopAlcoholLabel').textContent = `${parsedAlc.emoji} ${parsedAlc.displayLabel}`;
+      deskAlcClear.classList.remove('hidden');
+      btnMobAlc.classList.add('active');
+      document.getElementById('mobileAlcoholLabel').textContent = `${parsedAlc.emoji} ${parsedAlc.displayLabel}`;
+    } else {
+      btnDeskAlc.classList.remove('active');
+      document.getElementById('desktopAlcoholLabel').textContent = 'Alcohol search';
+      deskAlcClear.classList.add('hidden');
+      btnMobAlc.classList.remove('active');
+      document.getElementById('mobileAlcoholLabel').textContent = 'Alcohol';
+    }
 
     const activeF = (state.filters.area !== 'all' ? 1 : 0) + (state.filters.status !== 'all' ? 1 : 0) + (state.filters.sort !== 'rank' ? 1 : 0) + (state.filters.search ? 1 : 0);
     const mBadge = document.getElementById('mobileFilterBadge');
@@ -238,16 +476,104 @@
   function renderExploreGrid() {
     const list = getFilteredBars();
     const el = document.getElementById('exploreGrid');
-    if (!list.length) {
-      el.innerHTML = `<div style="grid-column:1/-1;padding:64px 20px;text-align:center;">
-        <div style="font-size:18px;font-weight:700;">No exact matches</div>
-        <div style="font-size:14px;color:var(--ink-secondary);margin-top:6px;">Try changing your district or clearing filters.</div>
-        <button id="emptyResetBtn" class="btn-outline" style="margin-top:16px;">Remove all filters</button>
+    const banner = document.getElementById('alcoholBanner');
+    const parsedAlc = resolveAlcoholQuery(state.filters.alcohol);
+
+    if (!parsedAlc) {
+      banner.classList.add('hidden');
+      banner.innerHTML = '';
+      if (!list.length) {
+        el.innerHTML = `<div style="grid-column:1/-1;padding:64px 20px;text-align:center;">
+          <div style="font-size:18px;font-weight:700;">No exact matches</div>
+          <div style="font-size:14px;color:var(--ink-secondary);margin-top:6px;">Try changing your district or clearing filters.</div>
+          <button id="emptyResetBtn" class="btn-outline" style="margin-top:16px;">Remove all filters</button>
+        </div>`;
+        document.getElementById('emptyResetBtn').onclick = resetFilters;
+        return;
+      }
+      el.innerHTML = list.map(b => listingCardHtml(b)).join('');
+      return;
+    }
+
+    // Grouped Alcohol Search mode: "Specializes in" first -> "Also serves" second
+    const specItems = [];
+    const servesItems = [];
+    list.forEach(b => {
+      const m = matchBarAlcohol(b, parsedAlc);
+      if (!m) return;
+      if (m.tier === 'specialty') specItems.push({ bar: b, match: m });
+      else servesItems.push({ bar: b, match: m });
+    });
+
+    if (state.filters.sort === 'rank') {
+      specItems.sort((a, b) => alcoholRelevanceScore(b.bar, b.match, parsedAlc) - alcoholRelevanceScore(a.bar, a.match, parsedAlc) || (b.bar.reviewCount || 0) - (a.bar.reviewCount || 0));
+      servesItems.sort((a, b) => alcoholRelevanceScore(b.bar, b.match, parsedAlc) - alcoholRelevanceScore(a.bar, a.match, parsedAlc) || (b.bar.reviewCount || 0) - (a.bar.reviewCount || 0));
+    }
+
+    const total = specItems.length + servesItems.length;
+    const breakdownParts = [];
+    if (specItems.length) breakdownParts.push(`${specItems.length} specialize`);
+    if (servesItems.length) breakdownParts.push(`${servesItems.length} also serve`);
+    const subText = total
+      ? `${total} bar${total === 1 ? '' : 's'} serving ${parsedAlc.displayLabel} (${breakdownParts.join(' · ')})`
+      : `No bars match "${parsedAlc.displayLabel}" with your current district/category filters`;
+
+    banner.classList.remove('hidden');
+    banner.innerHTML = `
+      <div class="alcohol-banner-left">
+        <div class="alcohol-banner-emoji">${parsedAlc.emoji}</div>
+        <div style="min-width:0;">
+          <div class="alcohol-banner-title">Alcohol Search: ${esc(parsedAlc.displayLabel)}</div>
+          <div class="alcohol-banner-sub">${esc(subText)}</div>
+        </div>
+      </div>
+      <div class="alcohol-banner-actions">
+        <button id="btnBannerSwitchAlcohol" class="mini-cta">Switch drink</button>
+        <button id="btnBannerClearAlcohol" class="mini-cta primary">Clear ✕</button>
+      </div>
+    `;
+    document.getElementById('btnBannerSwitchAlcohol').onclick = openAlcoholSheet;
+    document.getElementById('btnBannerClearAlcohol').onclick = clearAlcoholSearch;
+
+    if (!total) {
+      el.innerHTML = `<div style="grid-column:1/-1;padding:56px 20px;text-align:center;">
+        <div style="font-size:18px;font-weight:700;">No bars found for "${esc(parsedAlc.displayLabel)}"</div>
+        <div style="font-size:14px;color:var(--ink-secondary);margin-top:6px;">Try switching drinks, searching a broader spirit, or clearing district/category filters.</div>
+        <div style="display:flex;justify-content:center;gap:10px;margin-top:16px;flex-wrap:wrap;">
+          <button id="emptySwitchAlcBtn" class="btn-rausch" style="padding:10px 18px;font-size:14px;">Switch drink</button>
+          <button id="emptyResetBtn" class="btn-outline" style="padding:10px 18px;font-size:14px;">Reset all filters</button>
+        </div>
       </div>`;
+      document.getElementById('emptySwitchAlcBtn').onclick = openAlcoholSheet;
       document.getElementById('emptyResetBtn').onclick = resetFilters;
       return;
     }
-    el.innerHTML = list.map(listingCardHtml).join('');
+
+    let html = '';
+    if (specItems.length) {
+      html += `
+        <div class="alcohol-group-header specialty">
+          <div class="alcohol-group-title">
+            <span class="alcohol-group-star">★</span>
+            <span>Specializes in ${esc(parsedAlc.displayLabel)}</span>
+          </div>
+          <span class="alcohol-group-count">${specItems.length} bar${specItems.length === 1 ? '' : 's'}</span>
+        </div>
+      `;
+      html += specItems.map(({ bar, match }) => listingCardHtml(bar, match)).join('');
+    }
+    if (servesItems.length) {
+      html += `
+        <div class="alcohol-group-header secondary">
+          <div class="alcohol-group-title">
+            <span>Also serves ${esc(parsedAlc.displayLabel)}</span>
+          </div>
+          <span class="alcohol-group-count">${servesItems.length} bar${servesItems.length === 1 ? '' : 's'}</span>
+        </div>
+      `;
+      html += servesItems.map(({ bar, match }) => listingCardHtml(bar, match)).join('');
+    }
+    el.innerHTML = html;
   }
 
   function renderWishlists() {
@@ -257,7 +583,7 @@
       : 'Tap the heart on any bar to save it for your next night out.';
     const el = document.getElementById('wishlistGrid');
     el.innerHTML = saved.length
-      ? saved.map(listingCardHtml).join('')
+      ? saved.map(b => listingCardHtml(b)).join('')
       : `<div style="grid-column:1/-1;padding:60px 16px;text-align:center;color:var(--ink-secondary);font-size:15px;">Your wishlist is empty.</div>`;
   }
 
@@ -270,8 +596,8 @@
 
     const el = document.getElementById('passportGrid');
     el.innerHTML = visited.length
-      ? visited.map(listingCardHtml).join('')
-      : `<div style="grid-column:1/-1;padding:48px 16px;text-align:center;color:var(--ink-secondary);font-size:15px;">Open any bar and tap <strong>Check in</strong> to stamp your Singapore cocktail passport.</div>`;
+      ? visited.map(b => listingCardHtml(b)).join('')
+      : `<div style="grid-column:1/-1;padding:48px 16px;text-align:center;color:var(--ink-secondary);font-size:15px;">Open any bar and tap <strong>Check in</strong> to stamp your Singapore bar passport.</div>`;
   }
 
   function renderCrawl() {
@@ -310,19 +636,127 @@
     }
 
     const q = (document.getElementById('crawlSearch').value || '').trim().toLowerCase();
-    const avail = all.filter(b => !state.crawl.includes(b.id) && (!q || `${b.name} ${b.area} ${b.style}`.toLowerCase().includes(q))).slice(0, 10);
+    const avail = all.filter(b => !state.crawl.includes(b.id) && (!q || `${b.name} ${b.area} ${b.style} ${barAlcoholText(b)}`.toLowerCase().includes(q))).slice(0, 12);
     document.getElementById('crawlAddList').innerHTML = avail.map(b => `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:14px;">
         <div style="display:flex;align-items:center;gap:12px;min-width:0;">
           <img src="${photoSrc(b)}" alt="" style="width:44px;height:44px;border-radius:10px;object-fit:cover;flex-shrink:0;" />
           <div style="min-width:0;">
             <div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(b.name)}</div>
-            <div style="font-size:12.5px;color:var(--ink-secondary);">${esc(b.area)} ${b.asiaRank ? `· Asia #${b.asiaRank}` : ''}</div>
+            <div style="font-size:12.5px;color:var(--ink-secondary);">${esc(b.area)} ${b.asiaRank ? `· Asia #${b.asiaRank}` : (b.googleRating ? `· ${b.googleRating.toFixed(1)}★` : '')}</div>
           </div>
         </div>
         <button data-add="${b.id}" class="mini-cta">+ Add</button>
       </div>
     `).join('');
+  }
+
+  // ==================== ALCOHOL SEARCH MODAL SHEET ====================
+  function openAlcoholSheet() {
+    state.alcoholDraft = state.filters.alcohol || '';
+    const input = document.getElementById('alcoholSearchInput');
+    input.value = state.alcoholDraft;
+    renderAlcoholSheet();
+    document.getElementById('alcoholSheetBackdrop').classList.remove('hidden');
+  }
+
+  function closeAlcoholSheet() {
+    document.getElementById('alcoholSheetBackdrop').classList.add('hidden');
+  }
+
+  function applyAlcoholSearch(queryStr, opts = {}) {
+    const clean = String(queryStr || '').trim();
+    state.filters.alcohol = clean;
+    state.alcoholDraft = clean;
+    if (state.tab !== 'explore') state.tab = 'explore';
+    closeAlcoholSheet();
+    renderAll();
+
+    const parsed = resolveAlcoholQuery(clean);
+    if (parsed) {
+      const matched = getFilteredBars();
+      if (state.mapOpen && matched.length) {
+        setTimeout(() => fitMapToBars(matched), 80);
+      }
+      if (!opts.silent) {
+        showToast(`${parsed.emoji} ${matched.length} bar${matched.length === 1 ? '' : 's'} serving ${parsed.displayLabel}`);
+      }
+    } else if (!opts.silent) {
+      showToast('Showing all bars');
+    }
+  }
+
+  function clearAlcoholSearch() {
+    state.filters.alcohol = '';
+    state.alcoholDraft = '';
+    closeAlcoholSheet();
+    renderAll();
+    showToast('Alcohol search cleared');
+  }
+
+  function renderAlcoholSheet() {
+    const baseBars = getFilteredBars({ ignoreAlcohol: true });
+    const draft = (state.alcoholDraft || '').trim();
+    const parsedDraft = resolveAlcoholQuery(draft);
+
+    const hdrClear = document.getElementById('btnAlcoholHeaderClear');
+    hdrClear.classList.remove('hidden');
+    hdrClear.style.visibility = (!state.filters.alcohol && !draft) ? 'hidden' : 'visible';
+    hdrClear.disabled = !state.filters.alcohol && !draft;
+    document.getElementById('btnAlcoholInputClear').classList.toggle('hidden', !draft);
+
+    // Live instant preview box when user types a drink
+    const previewEl = document.getElementById('alcoholLivePreview');
+    const applyBtn = document.getElementById('btnApplyAlcoholSheet');
+    if (parsedDraft) {
+      const res = countAlcoholMatches(baseBars, parsedDraft);
+      previewEl.classList.remove('hidden');
+      const topSpecPills = res.specialty.slice(0, 4).map(({ bar }) => `<span class="alcohol-live-bar-pill">★ ${esc(bar.name)}</span>`).join('');
+      const summaryLeft = `${parsedDraft.emoji} "${esc(parsedDraft.displayLabel)}"`;
+      const summaryRight = res.total
+        ? `${res.specialty.length} specialize · ${res.serves.length} also serve`
+        : 'No matches';
+      previewEl.innerHTML = `
+        <div class="alcohol-live-summary">
+          <span>${summaryLeft}</span>
+          <span style="font-size:12.5px;font-weight:600;color:var(--ink-secondary);">${summaryRight}</span>
+        </div>
+        ${topSpecPills ? `<div class="alcohol-live-tags">${topSpecPills}${res.specialty.length > 4 ? `<span class="alcohol-live-bar-pill">+${res.specialty.length - 4} more</span>` : ''}</div>` : ''}
+      `;
+      applyBtn.textContent = res.total
+        ? `Show ${res.total} bar${res.total === 1 ? '' : 's'}`
+        : `Search "${parsedDraft.displayLabel}"`;
+    } else {
+      previewEl.classList.add('hidden');
+      previewEl.innerHTML = '';
+      applyBtn.textContent = `Show all ${baseBars.length} bars`;
+    }
+
+    // One-tap spirit & drink chip grid with live counts
+    const activeCatId = parsedDraft && parsedDraft.mode === 'broad' ? parsedDraft.catId : null;
+    document.getElementById('alcoholChipGrid').innerHTML = alcoholCatalog.map(item => {
+      const counts = countAlcoholMatches(baseBars, item.id);
+      const isAct = activeCatId === item.id;
+      const metaText = counts.specialty.length
+        ? `${counts.specialty.length} specialist · ${counts.total} total`
+        : `${counts.total} bar${counts.total === 1 ? '' : 's'}`;
+      return `
+        <button type="button" class="alcohol-chip ${isAct ? 'active' : ''}" data-alc-pick="${esc(item.label)}">
+          <span class="alcohol-chip-emoji">${item.emoji}</span>
+          <div style="min-width:0;">
+            <div class="alcohol-chip-name">${esc(item.label)}</div>
+            <div class="alcohol-chip-meta">${metaText}</div>
+          </div>
+        </button>
+      `;
+    }).join('');
+
+    // Popular cravings pills
+    const normDraft = normalizeText(draft);
+    document.getElementById('alcoholPopularPills').innerHTML = popularAlcoholSearches.map(term => {
+      const isAct = normDraft === normalizeText(term);
+      return `<button type="button" class="pill-opt ${isAct ? 'active' : ''}" data-alc-pick="${esc(term)}">${esc(term)}</button>`;
+    }).join('');
   }
 
   // ==================== AIRBNB FULL-SCREEN LISTING DETAIL SHEET ====================
@@ -341,16 +775,63 @@
     document.body.style.overflow = '';
   }
 
+  function renderDetailPourHtml(bar) {
+    const alc = bar.alcohol;
+    if (!alc) return '';
+    const specEntries = Object.entries(alc.specialties || {});
+    const serveEntries = Object.entries(alc.serves || {});
+    if (!specEntries.length && !serveEntries.length) return '';
+
+    const specHtml = specEntries.map(([catId, note]) => {
+      const item = getCatalogItem(catId) || { emoji: '🍸', label: catId };
+      return `
+        <button type="button" class="detail-pour-spec-card" data-detail-alc="${esc(item.label)}">
+          <span class="detail-pour-spec-emoji">${item.emoji}</span>
+          <div style="min-width:0;flex:1;">
+            <div class="detail-pour-spec-title">★ Specializes in ${esc(item.label)}</div>
+            <div class="detail-pour-spec-note">${esc(note)}</div>
+          </div>
+        </button>
+      `;
+    }).join('');
+
+    const serveHtml = serveEntries.map(([catId, note]) => {
+      const item = getCatalogItem(catId) || { emoji: '🍸', label: catId };
+      return `<button type="button" class="detail-pour-pill" data-detail-alc="${esc(item.label)}" title="${esc(note)}">${item.emoji} ${esc(item.label)}</button>`;
+    }).join('');
+
+    return `
+      <div class="detail-divider"></div>
+      <div>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:10px;">
+          <div style="font-size:18px;font-weight:700;">What they pour</div>
+          <span style="font-size:12px;color:var(--ink-secondary);">Tap any drink to search</span>
+        </div>
+        ${specHtml ? `<div class="detail-pour-spec-list">${specHtml}</div>` : ''}
+        ${serveHtml ? `<div style="font-size:12.5px;font-weight:600;color:var(--ink-secondary);margin-top:12px;">Also serves</div><div class="detail-pour-serves-row">${serveHtml}</div>` : ''}
+      </div>
+    `;
+  }
+
   function renderDetailSheet() {
     const bar = getAllBars().find(b => b.id === state.detailId);
     if (!bar) return;
     const r = getRecord(bar.id);
     const inCrawl = state.crawl.includes(bar.id);
+    const isThe50 = bar.source === 'the50' || !!bar.the50Url;
 
-    const laurelLeft = bar.asiaRank ? `#${bar.asiaRank}` : '50';
-    const laurelLeftSub = bar.asiaRank ? "Asia's Best" : 'Discovery';
-    const laurelMid = bar.worldRank ? `#${bar.worldRank}` : (bar.googleRating ? `${bar.googleRating.toFixed(1)} ★` : '4.6 ★');
-    const laurelMidSub = bar.worldRank ? "World's Best" : 'Google Rating';
+    let laurelLeft, laurelLeftSub, laurelMid, laurelMidSub;
+    if (isThe50) {
+      laurelLeft = bar.asiaRank ? `#${bar.asiaRank}` : '50';
+      laurelLeftSub = bar.asiaRank ? "Asia's Best" : 'Discovery';
+      laurelMid = bar.worldRank ? `#${bar.worldRank}` : (bar.googleRating ? `${bar.googleRating.toFixed(1)} ★` : '4.6 ★');
+      laurelMidSub = bar.worldRank ? "World's Best" : 'Google Rating';
+    } else {
+      laurelLeft = bar.googleRating ? `${bar.googleRating.toFixed(1)} ★` : '4.7 ★';
+      laurelLeftSub = 'Google Maps';
+      laurelMid = bar.reviewCount ? bar.reviewCount.toLocaleString() : 'Top Rated';
+      laurelMidSub = bar.reviewCount ? 'Reviews' : 'Central SG';
+    }
     const laurelRight = r.rating ? `${r.rating}.0 ★` : (r.visited ? '✓' : '—');
     const laurelRightSub = r.rating ? 'Your Rating' : (r.visited ? 'Visited' : 'Not rated');
 
@@ -421,8 +902,17 @@
               <div class="feature-title">Recognised by the50.com (2026)</div>
               <div class="feature-desc"><a href="${bar.the50Url}" target="_blank" rel="noopener noreferrer" style="text-decoration:underline;font-weight:600;color:var(--ink);">Read official listing on the50.com ↗</a></div>
             </div>
-          </div>` : ''}
+          </div>` : `
+          <div class="feature-row">
+            <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 14.4 7.2 16.9l.9-5.4-3.9-3.8 5.4-.8L12 2z" stroke-linejoin="round"/></svg>
+            <div>
+              <div class="feature-title">Central Area 4.6★+ Google Maps Pick</div>
+              <div class="feature-desc">Rated ${bar.googleRating ? bar.googleRating.toFixed(1) : '4.6'}★ on Google Maps${bar.reviewCount ? ` (${bar.reviewCount.toLocaleString()} reviews)` : ''}</div>
+            </div>
+          </div>`}
         </div>
+
+        ${renderDetailPourHtml(bar)}
 
         <div class="detail-divider"></div>
 
@@ -470,7 +960,7 @@
 
     document.getElementById('detailStickyBar').innerHTML = `
       <div>
-        <div style="font-size:16px;font-weight:700;">${esc(bar.avgDrink || bar.price)} <span style="font-size:13.5px;font-weight:400;color:var(--ink-secondary);">avg cocktail</span></div>
+        <div style="font-size:16px;font-weight:700;">${esc(bar.avgDrink || bar.price)} <span style="font-size:13.5px;font-weight:400;color:var(--ink-secondary);">avg drink</span></div>
         <div style="font-size:12.5px;color:var(--ink-secondary);">${r.visited ? `Visited${r.visitDate ? ` on ${esc(r.visitDate)}` : ''}` : 'Not visited yet'}</div>
       </div>
       <button id="detCheckIn" class="btn-rausch ${r.visited ? 'done' : ''}">
@@ -500,6 +990,15 @@
     document.getElementById('detDate').onchange = e => updateRecord(bar.id, { visitDate: e.target.value, visited: true });
     document.getElementById('detDrink').onchange = e => updateRecord(bar.id, { drink: e.target.value });
     document.getElementById('detNotes').onchange = e => updateRecord(bar.id, { notes: e.target.value });
+
+    // Tappable "What they pour" drink pills launch Alcohol Search immediately!
+    document.getElementById('detailScroll').querySelectorAll('[data-detail-alc]').forEach(btn => {
+      btn.onclick = () => {
+        const drink = btn.dataset.detailAlc;
+        closeDetail();
+        applyAlcoholSearch(drink);
+      };
+    });
   }
 
   // ==================== REAL MAP (ONEMAP SINGAPORE SLA — FREE, ZERO API KEY) ====================
@@ -567,6 +1066,19 @@
     const btnVis = document.getElementById('btnMapVisited');
     if (!btnCrawl || !btnWish || !btnVis) return;
 
+    // Active alcohol filter pill right inside map overlay strip
+    const alcPill = document.getElementById('mapAlcoholPill');
+    const parsedAlc = resolveAlcoholQuery(state.filters.alcohol);
+    if (alcPill) {
+      if (parsedAlc) {
+        const cnt = getFilteredBars().length;
+        alcPill.classList.remove('hidden');
+        document.getElementById('btnMapAlcoholSwitch').textContent = `${parsedAlc.emoji} ${parsedAlc.displayLabel} · ${cnt}`;
+      } else {
+        alcPill.classList.add('hidden');
+      }
+    }
+
     document.getElementById('mapCrawlLabel').textContent = crawlCount ? `Crawl route · ${crawlCount}` : 'Crawl route';
     document.getElementById('mapWishlistLabel').textContent = wishCount ? `Wishlist · ${wishCount}` : 'Wishlist';
     document.getElementById('mapVisitedLabel').textContent = visCount ? `Visited · ${visCount}` : 'Visited';
@@ -600,6 +1112,7 @@
 
     const all = getAllBars();
     const crawlBars = state.crawl.map(id => all.find(b => b.id === id)).filter(Boolean);
+    const parsedAlc = resolveAlcoholQuery(state.filters.alcohol);
 
     // Draw bar crawl route polyline only when Crawl route toggle is ON
     if (state.mapLayers.showCrawl && crawlBars.length >= 2) {
@@ -608,12 +1121,12 @@
       }).addTo(map);
     }
 
-    // Choose which bars appear on map based on Wishlist / Visited / Crawl overlays
+    // Choose which bars appear on map based on Wishlist / Visited / Alcohol / Filters
     let visibleBars;
     if (state.mapLayers.onlyWishlist) {
-      visibleBars = all.filter(b => getRecord(b.id).wishlist);
+      visibleBars = all.filter(b => getRecord(b.id).wishlist && (!parsedAlc || matchBarAlcohol(b, parsedAlc)));
     } else if (state.mapLayers.onlyVisited) {
-      visibleBars = all.filter(b => getRecord(b.id).visited);
+      visibleBars = all.filter(b => getRecord(b.id).visited && (!parsedAlc || matchBarAlcohol(b, parsedAlc)));
     } else {
       visibleBars = getFilteredBars();
     }
@@ -631,14 +1144,17 @@
       const isVisited = !!r.visited;
       const isWishlist = !!r.wishlist;
       const isSel = bar.id === state.selectedMapId;
+      const alcMatch = parsedAlc ? matchBarAlcohol(bar, parsedAlc) : null;
+      const isAlcSpec = !!(alcMatch && alcMatch.tier === 'specialty');
 
+      const ratingNum = bar.googleRating ? bar.googleRating.toFixed(1) : null;
       const label = isCrawlStop
         ? `${cIdx + 1} · ${bar.name.split(' ')[0]}`
-        : (bar.asiaRank ? `#${bar.asiaRank}` : (bar.avgDrink || bar.price));
+        : (bar.asiaRank ? `#${bar.asiaRank}` : (ratingNum ? (isAlcSpec && !isVisited ? ratingNum : `${ratingNum}★`) : (bar.avgDrink || bar.price)));
 
-      const icons = `${isVisited ? '<span class="m-check">✓</span>' : ''}${isWishlist ? '<span class="m-heart">♥</span>' : ''}`;
-      const cls = `airbnb-marker ${isSel ? 'active' : ''} ${isVisited ? 'visited' : ''} ${isWishlist ? 'wishlist' : ''} ${isCrawlStop && !isSel ? 'crawl' : ''}`;
-      const zIdx = isSel ? 1000 : (isCrawlStop ? 700 : (isVisited ? 550 : (isWishlist ? 500 : (bar.asiaRank ? 300 : 100))));
+      const icons = `${isVisited ? '<span class="m-check">✓</span>' : ''}${isWishlist ? '<span class="m-heart">♥</span>' : ''}${isAlcSpec && !isVisited ? '<span class="m-star">★</span>' : ''}`;
+      const cls = `airbnb-marker ${isSel ? 'active' : ''} ${isVisited ? 'visited' : ''} ${isWishlist ? 'wishlist' : ''} ${isCrawlStop && !isSel ? 'crawl' : ''} ${isAlcSpec ? 'alcohol-spec' : ''}`;
+      const zIdx = isSel ? 1000 : (isCrawlStop ? 700 : (isAlcSpec ? 650 : (isVisited ? 550 : (isWishlist ? 500 : (bar.asiaRank ? 300 : 100)))));
 
       const icon = L.divIcon({
         className: 'leaflet-div-icon',
@@ -663,11 +1179,19 @@
     el.classList.remove('hidden');
     const r = getRecord(bar.id);
     const cIdx = state.crawl.indexOf(bar.id);
+    const parsedAlc = resolveAlcoholQuery(state.filters.alcohol);
+    const alcMatch = parsedAlc ? matchBarAlcohol(bar, parsedAlc) : null;
+
     const badges = [
+      alcMatch ? `<span class="mpc-badge ${alcMatch.tier === 'specialty' ? 'alc-spec' : 'alc-serves'}">${alcMatch.tier === 'specialty' ? `★ Specializes in ${esc(parsedAlc.displayLabel)}` : `${parsedAlc.emoji} Serves ${esc(parsedAlc.displayLabel)}`}</span>` : '',
       r.visited ? '<span class="mpc-badge visited">✓ Visited</span>' : '',
       r.wishlist ? '<span class="mpc-badge wishlist">♥ Wishlisted</span>' : '',
       state.mapLayers.showCrawl && cIdx >= 0 ? `<span class="mpc-badge crawl">Stop #${cIdx + 1}</span>` : ''
     ].filter(Boolean).join('');
+
+    const pourLine = alcMatch
+      ? `<div class="mpc-pour ${alcMatch.tier === 'specialty' ? '' : 'serves'}">${esc(alcMatch.note)}</div>`
+      : '';
 
     el.innerHTML = `
       <img class="mpc-img" src="${photoSrc(bar)}" alt="${esc(bar.name)}" />
@@ -675,11 +1199,12 @@
         <div>
           <div class="card-row-1">
             <div class="card-title">${esc(bar.name)}</div>
-            <div class="card-rating">★ ${r.rating ? `${r.rating}.0` : (bar.googleRating || 4.6)}</div>
+            <div class="card-rating">★ ${r.rating ? `${r.rating}.0` : (bar.googleRating ? bar.googleRating.toFixed(1) : '4.6')}</div>
           </div>
           <div class="card-sub">${esc(bar.ribbon || bar.style)} · ${esc(bar.area)}</div>
           <div class="card-sub" style="font-size:12.5px;">${esc(bar.shortHours)}</div>
           ${badges ? `<div class="mpc-badges">${badges}</div>` : ''}
+          ${pourLine}
         </div>
         <div class="mpc-actions">
           <a href="${gmapsPlaceUrl(bar)}" target="_blank" rel="noopener noreferrer" class="mini-cta primary" onclick="event.stopPropagation()">Google Maps ↗</a>
@@ -811,7 +1336,8 @@
   }
 
   function resetFilters() {
-    state.filters = { search: '', cat: 'all', area: 'all', status: 'all', sort: 'rank' };
+    state.filters = { search: '', cat: 'all', area: 'all', status: 'all', sort: 'rank', alcohol: '' };
+    state.alcoholDraft = '';
     renderAll();
   }
 
@@ -833,23 +1359,29 @@
     const bars = getAllBars();
     const groups = {
       '2026 World & Asia 50 Best Ranked': bars.filter(b => b.worldRank || b.asiaRank),
+      'The 50 Discovery Singapore': bars.filter(b => (b.source === 'the50' || b.the50Url) && !b.worldRank && !b.asiaRank),
+      'Central Area 4.6★+ Top Rated': bars.filter(b => b.source === 'google_top'),
       'Visited Bars': bars.filter(b => getRecord(b.id).visited),
-      'Wishlists': bars.filter(b => getRecord(b.id).wishlist && !getRecord(b.id).visited),
-      'The 50 Discovery Singapore': bars.filter(b => !b.worldRank && !b.asiaRank)
+      'Wishlists': bars.filter(b => getRecord(b.id).wishlist && !getRecord(b.id).visited)
     };
     const folders = Object.entries(groups).map(([name, items]) => `<Folder><name>${xmlEsc(name)}</name>${items.map(b => {
       const r = getRecord(b.id);
-      const desc = [b.ribbon || '50 Discovery', `${b.area} · ${b.style}`, b.address, b.hours, r.visited ? `Visited (${r.visitDate || 'Yes'})` : '', r.rating ? `My Rating: ${'★'.repeat(r.rating)}` : '', r.drink ? `Tried: ${r.drink}` : '', r.notes].filter(Boolean).join('\n');
+      const specKeys = Object.keys((b.alcohol && b.alcohol.specialties) || {}).join(', ');
+      const desc = [b.ribbon || (b.googleRating ? `${b.googleRating.toFixed(1)}★ Google Maps` : 'Singapore Bar'), `${b.area} · ${b.style}`, b.address, b.hours, specKeys ? `Specializes in: ${specKeys}` : '', r.visited ? `Visited (${r.visitDate || 'Yes'})` : '', r.rating ? `My Rating: ${'★'.repeat(r.rating)}` : '', r.drink ? `Tried: ${r.drink}` : '', r.notes].filter(Boolean).join('\n');
       return `<Placemark><name>${xmlEsc(b.name)}</name><description>${xmlEsc(desc)}</description><Point><coordinates>${b.lng},${b.lat},0</coordinates></Point></Placemark>`;
     }).join('')}</Folder>`).join('');
-    dl('singapore-50-best-bars.kml', `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>SG 50 — Singapore Cocktail Bars (the50.com 2026)</name>${folders}</Document></kml>`, 'application/vnd.google-earth.kml+xml');
+    dl('singapore-bars-guide.kml', `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>SG 50 — Singapore Cocktail &amp; Bar Guide (${bars.length} Bars)</name>${folders}</Document></kml>`, 'application/vnd.google-earth.kml+xml');
     showToast('Downloaded KML for Google My Maps');
   }
 
   function exportCSV() {
-    const cols = ['Name', 'World 2026', 'Asia 2026', 'District', 'Address', 'Style', 'Avg Cocktail', 'Visited', 'Wishlist', 'Rating', 'Drink', 'Notes', 'Google Maps'];
-    const rows = getAllBars().map(b => { const r = getRecord(b.id); return [b.name, b.worldRank || '', b.asiaRank || '', b.area, b.address, b.style, b.avgDrink || b.price, r.visited ? 'Yes' : 'No', r.wishlist ? 'Yes' : 'No', r.rating || '', r.drink || '', r.notes || '', gmapsPlaceUrl(b)].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','); });
-    dl('singapore-50-best-bars.csv', [cols.join(','), ...rows].join('\n'), 'text/csv');
+    const cols = ['Name', 'Source', 'Google Rating', 'World 2026', 'Asia 2026', 'District', 'Address', 'Style', 'Avg Drink', 'Alcohol Specialties', 'Visited', 'Wishlist', 'Rating', 'Drink', 'Notes', 'Google Maps'];
+    const rows = getAllBars().map(b => {
+      const r = getRecord(b.id);
+      const specs = Object.keys((b.alcohol && b.alcohol.specialties) || {}).join('; ');
+      return [b.name, b.source === 'google_top' ? 'Google 4.6★+' : 'the50.com', b.googleRating || '', b.worldRank || '', b.asiaRank || '', b.area, b.address, b.style, b.avgDrink || b.price, specs, r.visited ? 'Yes' : 'No', r.wishlist ? 'Yes' : 'No', r.rating || '', r.drink || '', r.notes || '', gmapsPlaceUrl(b)].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+    });
+    dl('singapore-bars-guide.csv', [cols.join(','), ...rows].join('\n'), 'text/csv');
     showToast('Downloaded CSV');
   }
 
@@ -905,6 +1437,49 @@
     renderAll();
   });
 
+  // Alcohol Search triggers & sheet wiring
+  document.getElementById('btnDesktopAlcohol').onclick = e => {
+    if (e.target.closest('#desktopAlcoholClear')) {
+      e.stopPropagation();
+      clearAlcoholSearch();
+      return;
+    }
+    openAlcoholSheet();
+  };
+  document.getElementById('btnMobileAlcohol').onclick = openAlcoholSheet;
+  document.getElementById('closeAlcoholSheet').onclick = closeAlcoholSheet;
+  document.getElementById('alcoholSheetBackdrop').onclick = e => { if (e.target.id === 'alcoholSheetBackdrop') closeAlcoholSheet(); };
+  document.getElementById('btnAlcoholHeaderClear').onclick = clearAlcoholSearch;
+  document.getElementById('btnClearAlcoholSheet').onclick = clearAlcoholSearch;
+  document.getElementById('btnAlcoholInputClear').onclick = () => {
+    state.alcoholDraft = '';
+    document.getElementById('alcoholSearchInput').value = '';
+    renderAlcoholSheet();
+    document.getElementById('alcoholSearchInput').focus();
+  };
+  document.getElementById('alcoholSearchInput').oninput = e => {
+    state.alcoholDraft = e.target.value;
+    renderAlcoholSheet();
+  };
+  document.getElementById('alcoholSearchInput').onkeydown = e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      applyAlcoholSearch(state.alcoholDraft);
+    }
+  };
+  document.getElementById('btnApplyAlcoholSheet').onclick = () => applyAlcoholSearch(state.alcoholDraft);
+
+  ['alcoholChipGrid', 'alcoholPopularPills'].forEach(id => {
+    document.getElementById(id).addEventListener('click', e => {
+      const btn = e.target.closest('[data-alc-pick]');
+      if (!btn) return;
+      applyAlcoholSearch(btn.dataset.alcPick);
+    });
+  });
+
+  document.getElementById('btnMapAlcoholSwitch').onclick = openAlcoholSheet;
+  document.getElementById('btnMapAlcoholClear').onclick = clearAlcoholSearch;
+
   document.getElementById('btnToggleMap').onclick = () => {
     state.mapOpen = !state.mapOpen;
     renderHeaderState();
@@ -943,9 +1518,10 @@
   };
 
   document.getElementById('btnMapWishlist').onclick = () => {
-    const wishBars = getAllBars().filter(b => getRecord(b.id).wishlist);
+    const parsedAlc = resolveAlcoholQuery(state.filters.alcohol);
+    const wishBars = getAllBars().filter(b => getRecord(b.id).wishlist && (!parsedAlc || matchBarAlcohol(b, parsedAlc)));
     if (!state.mapLayers.onlyWishlist && !wishBars.length) {
-      showToast('Tap ♥ on any bar to save it to Wishlists');
+      showToast(parsedAlc ? `No wishlisted bars serving ${parsedAlc.displayLabel}` : 'Tap ♥ on any bar to save it to Wishlists');
       return;
     }
     state.mapLayers.onlyWishlist = !state.mapLayers.onlyWishlist;
@@ -957,14 +1533,15 @@
       fitMapToBars(wishBars);
       showToast(`Showing ${wishBars.length} wishlisted bar${wishBars.length === 1 ? '' : 's'}`);
     } else {
-      showToast('Showing all bars');
+      showToast('Showing all matching bars');
     }
   };
 
   document.getElementById('btnMapVisited').onclick = () => {
-    const visBars = getAllBars().filter(b => getRecord(b.id).visited);
+    const parsedAlc = resolveAlcoholQuery(state.filters.alcohol);
+    const visBars = getAllBars().filter(b => getRecord(b.id).visited && (!parsedAlc || matchBarAlcohol(b, parsedAlc)));
     if (!state.mapLayers.onlyVisited && !visBars.length) {
-      showToast('Check in at any bar to highlight it on the map');
+      showToast(parsedAlc ? `No visited bars serving ${parsedAlc.displayLabel}` : 'Check in at any bar to highlight it on the map');
       return;
     }
     state.mapLayers.onlyVisited = !state.mapLayers.onlyVisited;
@@ -976,7 +1553,7 @@
       fitMapToBars(visBars);
       showToast(`Showing ${visBars.length} visited bar${visBars.length === 1 ? '' : 's'}`);
     } else {
-      showToast('Showing all bars');
+      showToast('Showing all matching bars');
     }
   };
 
@@ -1020,14 +1597,16 @@
   document.getElementById('btnClearCrawl').onclick = () => { state.crawl = []; saveState(); renderAll(); };
   document.getElementById('crawlSearch').oninput = renderCrawl;
   document.querySelectorAll('.preset-card').forEach(b => b.onclick = () => {
-    state.crawl = [...presets[b.dataset.preset].stops];
-    saveState(); renderAll(); showToast(`Loaded ${presets[b.dataset.preset].title}`);
+    const preset = presets[b.dataset.preset];
+    if (!preset) return;
+    state.crawl = [...preset.stops];
+    saveState(); renderAll(); showToast(`Loaded ${preset.title}`);
   });
   document.getElementById('btnShareCrawl').onclick = () => {
     const stops = state.crawl.map(id => getAllBars().find(b => b.id === id)).filter(Boolean);
     if (!stops.length) return;
-    const text = `Singapore Cocktail Bar Crawl (the50.com)\n` + stops.map((b, i) => `${i + 1}. ${b.name} (${b.area})`).join('\n') + `\n\nGoogle Maps Walking Route:\n${gmapsCrawlUrl(stops)}`;
-    if (navigator.share) navigator.share({ title: 'Singapore Cocktail Crawl', text }).catch(() => {});
+    const text = `Singapore Bar Crawl\n` + stops.map((b, i) => `${i + 1}. ${b.name} (${b.area})`).join('\n') + `\n\nGoogle Maps Walking Route:\n${gmapsCrawlUrl(stops)}`;
+    if (navigator.share) navigator.share({ title: 'Singapore Bar Crawl', text }).catch(() => {});
     else navigator.clipboard?.writeText(text).then(() => showToast('Copied itinerary + Google Maps link'));
   };
   document.getElementById('crawlList').addEventListener('click', e => {
@@ -1042,6 +1621,7 @@
   const openSettings = () => {
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     document.getElementById('pwaStatusText').textContent = isStandalone ? 'Installed on Home Screen ✓ (Offline ready)' : 'Works offline with native full-screen UI';
+    document.getElementById('setExportKml').textContent = `Export All ${getAllBars().length} Bars to Google My Maps (.kml)`;
     document.getElementById('settingsBackdrop').classList.remove('hidden');
   };
   document.getElementById('btnDesktopSettings').onclick = openSettings;
@@ -1070,21 +1650,25 @@
     e.preventDefault();
     const area = document.getElementById('cbArea').value;
     const base = areaCoords[area] || [1.286, 103.848];
+    const sig = document.getElementById('cbSignature').value.trim() || 'House signature cocktail';
     const bar = {
       id: 'custom-' + Date.now(), name: document.getElementById('cbName').value.trim(),
+      source: 'custom',
       worldRank: null, asiaRank: null, ribbon: 'Custom', area, landmark: area,
       address: document.getElementById('cbAddress').value.trim(),
       lat: base[0] + (Math.random() - 0.5) * 0.002, lng: base[1] + (Math.random() - 0.5) * 0.002,
       style: document.getElementById('cbStyle').value.trim() || 'Cocktail Bar', cats: ['speakeasy'],
       photo: 'jigger-and-pony', googleRating: 4.8, price: '$$$', avgDrink: 'S$26',
       hours: 'Check Google Maps', shortHours: 'Open evenings',
-      signature: document.getElementById('cbSignature').value.trim() || 'House signature cocktail',
-      summary: 'Custom Singapore cocktail bar added to your personal passport.'
+      signature: sig,
+      summary: 'Custom Singapore bar added to your personal passport.',
+      alcohol: { specialties: { gin: sig }, serves: { whisky: 'House spirits & classics' } }
     };
     state.customBars.push(bar); saveState(); document.getElementById('customBackdrop').classList.add('hidden'); e.target.reset();
     renderAll(); openDetail(bar.id); showToast(`Added ${bar.name}`);
   };
 
+  // Expose lightweight test hooks only if needed in headless checks, without polluting global API
   loadState();
   updateMapThemeUI();
   renderAll();

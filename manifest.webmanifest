@@ -1,7 +1,7 @@
 {
-  "name": "SG 50 — Singapore Cocktail Bars",
+  "name": "SG 50 — Singapore Cocktail & Bar Guide",
   "short_name": "SG 50 Bars",
-  "description": "Track Singapore's best cocktail bars from the50.com with interactive maps and Google Maps bar crawls.",
+  "description": "Explore 79 top Singapore cocktail, champagne, wine, whisky, and sake bars with Alcohol Search, OneMap Singapore, and bar crawls.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
