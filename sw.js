@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sg50-bars-v4';
+const CACHE_NAME = 'sg50-bars-v5';
 
 const CORE_ASSETS = [
   './',

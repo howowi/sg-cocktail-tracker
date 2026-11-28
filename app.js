@@ -31,6 +31,7 @@
     tab: 'explore', // explore | wishlists | crawl | passport
     mapOpen: false,
     mapTheme: 'default', // default | night
+    mapLayers: { showCrawl: false, onlyWishlist: false, onlyVisited: false },
     selectedMapId: null,
     detailId: null,
     filters: { search: '', cat: 'all', area: 'all', status: 'all', sort: 'rank' },
@@ -223,6 +224,7 @@
     document.getElementById('toggleMapIcon').innerHTML = state.mapOpen
       ? '<path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round"/>'
       : '<path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" stroke-linecap="round" stroke-linejoin="round"/>';
+    renderMapLayerPills();
     syncHeaderHeight();
   }
 
@@ -554,6 +556,39 @@
     applyMapTheme(state.mapTheme, true);
   }
 
+  function renderMapLayerPills() {
+    const all = getAllBars();
+    const crawlCount = state.crawl.filter(id => all.some(b => b.id === id)).length;
+    const wishCount = all.filter(b => getRecord(b.id).wishlist).length;
+    const visCount = all.filter(b => getRecord(b.id).visited).length;
+
+    const btnCrawl = document.getElementById('btnMapCrawl');
+    const btnWish = document.getElementById('btnMapWishlist');
+    const btnVis = document.getElementById('btnMapVisited');
+    if (!btnCrawl || !btnWish || !btnVis) return;
+
+    document.getElementById('mapCrawlLabel').textContent = crawlCount ? `Crawl route · ${crawlCount}` : 'Crawl route';
+    document.getElementById('mapWishlistLabel').textContent = wishCount ? `Wishlist · ${wishCount}` : 'Wishlist';
+    document.getElementById('mapVisitedLabel').textContent = visCount ? `Visited · ${visCount}` : 'Visited';
+
+    btnCrawl.classList.toggle('active', state.mapLayers.showCrawl && crawlCount > 0);
+    btnCrawl.setAttribute('aria-pressed', String(state.mapLayers.showCrawl && crawlCount > 0));
+    btnWish.classList.toggle('active', state.mapLayers.onlyWishlist);
+    btnWish.setAttribute('aria-pressed', String(state.mapLayers.onlyWishlist));
+    btnVis.classList.toggle('active', state.mapLayers.onlyVisited);
+    btnVis.setAttribute('aria-pressed', String(state.mapLayers.onlyVisited));
+  }
+
+  function fitMapToBars(bars) {
+    if (!state.leaflet.map || !bars.length) return;
+    if (bars.length === 1) {
+      state.leaflet.map.flyTo([bars[0].lat, bars[0].lng], 16, { duration: 0.65 });
+      return;
+    }
+    const bounds = L.latLngBounds(bars.map(b => [b.lat, b.lng]));
+    state.leaflet.map.fitBounds(bounds, { padding: [72, 72], maxZoom: 16, animate: true });
+  }
+
   function syncMapMarkers() {
     ensureLeafletMap();
     const map = state.leaflet.map;
@@ -563,23 +598,54 @@
     state.leaflet.markers = [];
     if (state.leaflet.routeLine) { state.leaflet.routeLine.remove(); state.leaflet.routeLine = null; }
 
-    // Crawl route polyline
     const all = getAllBars();
     const crawlBars = state.crawl.map(id => all.find(b => b.id === id)).filter(Boolean);
-    if (crawlBars.length >= 2) {
+
+    // Draw bar crawl route polyline only when Crawl route toggle is ON
+    if (state.mapLayers.showCrawl && crawlBars.length >= 2) {
       state.leaflet.routeLine = L.polyline(crawlBars.map(b => [b.lat, b.lng]), {
-        color: '#FF385C', weight: 3.5, dashArray: '6 6', opacity: 0.85
+        color: '#FF385C', weight: 3.5, dashArray: '6 6', opacity: 0.88
       }).addTo(map);
     }
 
-    getFilteredBars().forEach(bar => {
+    // Choose which bars appear on map based on Wishlist / Visited / Crawl overlays
+    let visibleBars;
+    if (state.mapLayers.onlyWishlist) {
+      visibleBars = all.filter(b => getRecord(b.id).wishlist);
+    } else if (state.mapLayers.onlyVisited) {
+      visibleBars = all.filter(b => getRecord(b.id).visited);
+    } else {
+      visibleBars = getFilteredBars();
+    }
+
+    // Ensure crawl stops stay visible whenever Crawl route toggle is ON
+    if (state.mapLayers.showCrawl && crawlBars.length) {
+      const seen = new Set(visibleBars.map(b => b.id));
+      crawlBars.forEach(b => { if (!seen.has(b.id)) { visibleBars.push(b); seen.add(b.id); } });
+    }
+
+    visibleBars.forEach(bar => {
       const r = getRecord(bar.id);
       const cIdx = state.crawl.indexOf(bar.id);
+      const isCrawlStop = state.mapLayers.showCrawl && cIdx >= 0;
+      const isVisited = !!r.visited;
+      const isWishlist = !!r.wishlist;
       const isSel = bar.id === state.selectedMapId;
-      const label = cIdx >= 0 ? `${cIdx + 1} · ${bar.name.split(' ')[0]}` : (bar.asiaRank ? `#${bar.asiaRank}` : (bar.avgDrink || bar.price));
-      const cls = `airbnb-marker ${isSel ? 'active' : ''} ${r.visited ? 'visited' : ''} ${cIdx >= 0 && !isSel ? 'crawl' : ''}`;
-      const icon = L.divIcon({ className: 'leaflet-div-icon', html: `<div class="${cls}">${esc(label)}</div>`, iconSize: [0, 0] });
-      const marker = L.marker([bar.lat, bar.lng], { icon, zIndexOffset: isSel ? 1000 : (bar.asiaRank ? 300 : 100) }).addTo(map);
+
+      const label = isCrawlStop
+        ? `${cIdx + 1} · ${bar.name.split(' ')[0]}`
+        : (bar.asiaRank ? `#${bar.asiaRank}` : (bar.avgDrink || bar.price));
+
+      const icons = `${isVisited ? '<span class="m-check">✓</span>' : ''}${isWishlist ? '<span class="m-heart">♥</span>' : ''}`;
+      const cls = `airbnb-marker ${isSel ? 'active' : ''} ${isVisited ? 'visited' : ''} ${isWishlist ? 'wishlist' : ''} ${isCrawlStop && !isSel ? 'crawl' : ''}`;
+      const zIdx = isSel ? 1000 : (isCrawlStop ? 700 : (isVisited ? 550 : (isWishlist ? 500 : (bar.asiaRank ? 300 : 100))));
+
+      const icon = L.divIcon({
+        className: 'leaflet-div-icon',
+        html: `<div class="${cls}">${icons}<span>${esc(label)}</span></div>`,
+        iconSize: [0, 0]
+      });
+      const marker = L.marker([bar.lat, bar.lng], { icon, zIndexOffset: zIdx }).addTo(map);
       marker.on('click', e => {
         L.DomEvent.stopPropagation(e);
         state.selectedMapId = bar.id;
@@ -596,6 +662,13 @@
     if (!bar || !state.mapOpen) { el.classList.add('hidden'); return; }
     el.classList.remove('hidden');
     const r = getRecord(bar.id);
+    const cIdx = state.crawl.indexOf(bar.id);
+    const badges = [
+      r.visited ? '<span class="mpc-badge visited">✓ Visited</span>' : '',
+      r.wishlist ? '<span class="mpc-badge wishlist">♥ Wishlisted</span>' : '',
+      state.mapLayers.showCrawl && cIdx >= 0 ? `<span class="mpc-badge crawl">Stop #${cIdx + 1}</span>` : ''
+    ].filter(Boolean).join('');
+
     el.innerHTML = `
       <img class="mpc-img" src="${photoSrc(bar)}" alt="${esc(bar.name)}" />
       <div class="mpc-body">
@@ -606,6 +679,7 @@
           </div>
           <div class="card-sub">${esc(bar.ribbon || bar.style)} · ${esc(bar.area)}</div>
           <div class="card-sub" style="font-size:12.5px;">${esc(bar.shortHours)}</div>
+          ${badges ? `<div class="mpc-badges">${badges}</div>` : ''}
         </div>
         <div class="mpc-actions">
           <a href="${gmapsPlaceUrl(bar)}" target="_blank" rel="noopener noreferrer" class="mini-cta primary" onclick="event.stopPropagation()">Google Maps ↗</a>
@@ -849,6 +923,63 @@
   document.getElementById('btnMapTheme').onclick = () => applyMapTheme(state.mapTheme === 'night' ? 'default' : 'night');
   document.getElementById('btnLocateMe').onclick = locateUser;
 
+  document.getElementById('btnMapCrawl').onclick = () => {
+    const all = getAllBars();
+    const crawlBars = state.crawl.map(id => all.find(b => b.id === id)).filter(Boolean);
+    if (!state.mapLayers.showCrawl && !crawlBars.length) {
+      showToast('Add stops in the Crawl tab to show your route');
+      return;
+    }
+    state.mapLayers.showCrawl = !state.mapLayers.showCrawl;
+    renderMapLayerPills();
+    syncMapMarkers();
+    renderMapPreview();
+    if (state.mapLayers.showCrawl) {
+      fitMapToBars(crawlBars);
+      showToast(`Showing bar crawl (${crawlBars.length} stop${crawlBars.length === 1 ? '' : 's'})`);
+    } else {
+      showToast('Bar crawl route hidden');
+    }
+  };
+
+  document.getElementById('btnMapWishlist').onclick = () => {
+    const wishBars = getAllBars().filter(b => getRecord(b.id).wishlist);
+    if (!state.mapLayers.onlyWishlist && !wishBars.length) {
+      showToast('Tap ♥ on any bar to save it to Wishlists');
+      return;
+    }
+    state.mapLayers.onlyWishlist = !state.mapLayers.onlyWishlist;
+    if (state.mapLayers.onlyWishlist) state.mapLayers.onlyVisited = false;
+    renderMapLayerPills();
+    syncMapMarkers();
+    renderMapPreview();
+    if (state.mapLayers.onlyWishlist) {
+      fitMapToBars(wishBars);
+      showToast(`Showing ${wishBars.length} wishlisted bar${wishBars.length === 1 ? '' : 's'}`);
+    } else {
+      showToast('Showing all bars');
+    }
+  };
+
+  document.getElementById('btnMapVisited').onclick = () => {
+    const visBars = getAllBars().filter(b => getRecord(b.id).visited);
+    if (!state.mapLayers.onlyVisited && !visBars.length) {
+      showToast('Check in at any bar to highlight it on the map');
+      return;
+    }
+    state.mapLayers.onlyVisited = !state.mapLayers.onlyVisited;
+    if (state.mapLayers.onlyVisited) state.mapLayers.onlyWishlist = false;
+    renderMapLayerPills();
+    syncMapMarkers();
+    renderMapPreview();
+    if (state.mapLayers.onlyVisited) {
+      fitMapToBars(visBars);
+      showToast(`Showing ${visBars.length} visited bar${visBars.length === 1 ? '' : 's'}`);
+    } else {
+      showToast('Showing all bars');
+    }
+  };
+
   // Delegated card click & heart toggle on all grids
   ['exploreGrid', 'wishlistGrid', 'passportGrid'].forEach(id => {
     document.getElementById(id).addEventListener('click', e => {
@@ -915,8 +1046,6 @@
   };
   document.getElementById('btnDesktopSettings').onclick = openSettings;
   document.getElementById('btnPassportMenu').onclick = openSettings;
-  document.getElementById('btnInstallHelp').onclick = openSettings;
-  document.getElementById('btnExportKmlMain').onclick = exportKML;
   document.getElementById('closeSettingsSheet').onclick = () => document.getElementById('settingsBackdrop').classList.add('hidden');
   document.getElementById('settingsBackdrop').onclick = e => { if (e.target.id === 'settingsBackdrop') document.getElementById('settingsBackdrop').classList.add('hidden'); };
 
